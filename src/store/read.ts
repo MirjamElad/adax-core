@@ -1,0 +1,97 @@
+import {
+    QueryFn,
+    QueryPlanInstance,
+    QueryInstance,
+    SkipCondition,
+} from './type';
+import { isInternal } from './utils';
+import { KernelStore, kernelStore } from './index';
+
+export const getExecStack = (_: any = null, stores: { kernel: KernelStore } = { kernel: kernelStore }) => (stores?.kernel?.execStack || []);
+
+const computeData = (queryInstance: QueryInstance, queryFn: QueryFn) => {
+  queryInstance.result!.prevData = queryInstance.result!.data;
+  queryInstance.result!.data = queryFn(queryInstance.paramsObj);
+  queryInstance.result!.version = queryInstance.result!.version + 1;
+}
+// consider:  https://github.com/pixa-pics/joyson#readme
+//            https://github.com/ungap/structured-clone/#readme
+const viewTrigger = (queryInstance: QueryInstance) => {
+  if (queryInstance.options?.hasResultChanged ? 
+      queryInstance.options?.hasResultChanged(queryInstance.result!.prevData, queryInstance.result!.data) :  
+      true) {
+    queryInstance.readTrigger!(queryInstance.result!);
+  }
+}
+
+const addQueryToPlan = (
+  stores: { kernel: KernelStore },
+  queryPlan: Map<QueryFn, Array<QueryPlanInstance>>,
+  dataComputationCallBacks: (() => void)[] = [],
+  viewsTriggeringCallBacks: (() => void)[] = [],
+  writeParamsObj: unknown,
+  queryFn: QueryFn,
+  skip: SkipCondition | undefined = undefined
+) => {
+  stores.kernel.queries?.get(queryFn)?.forEach((queryInstance) => {
+    if (!queryInstance?.readTrigger) return;
+    if (!queryPlan.has(queryFn)) {
+      queryPlan.set(queryFn, new Array<QueryPlanInstance>());
+    }
+    const queryInstancesList = queryPlan.get(queryFn)!;
+    const _skip = skip && skip(writeParamsObj, queryInstance.paramsObj);
+    queryInstance!.result = queryInstance?.result || {
+      version: 0,
+      data: undefined,
+      prevData: undefined,
+    };
+    if (!_skip && queryInstance?.readTrigger) {
+      dataComputationCallBacks.push(() => {
+        computeData(queryInstance, queryFn);
+      });
+      viewsTriggeringCallBacks.push(() => {
+        queryInstance?.readTrigger && viewTrigger(queryInstance);
+      });
+    }
+    queryInstancesList.push({
+      ...queryInstance,
+      skip: !!_skip,
+    });
+  });
+}
+
+export const  getQueryPlan = <FnType extends (x: any) => void>({writeFn, writeParamsObj} : {
+    writeFn: FnType,
+    writeParamsObj: Parameters<FnType>[0]
+  }, stores: { kernel: KernelStore } = { kernel: kernelStore }) => {
+    const queryPlan: Map<QueryFn, Array<QueryPlanInstance>> = new Map();
+    const dataComputationCallBacks: (() => void)[] = [];
+    let viewsTriggeringCallBacks: (() => void)[] = [];
+    if (!stores.kernel.runAllQueries && stores.kernel.rules.has(writeFn)) {
+      const queryFnMap = stores.kernel.rules.get(writeFn)!.readersMap;
+      if (!!queryFnMap?.size) {
+        queryFnMap?.forEach ((skip, queryFn) => {
+          addQueryToPlan(stores, queryPlan, dataComputationCallBacks, viewsTriggeringCallBacks, writeParamsObj, queryFn, skip);
+        });
+      }
+      if (stores.kernel.queries.size > stores.kernel.reverseRules.size) {
+        stores.kernel.queries.forEach((_, queryFn) => {
+          if (!stores.kernel.reverseRules.has(queryFn)) {
+            addQueryToPlan(stores, queryPlan, dataComputationCallBacks, viewsTriggeringCallBacks, writeParamsObj, queryFn);
+          }          
+        });        
+      }
+    } else if (!isInternal(writeFn)) {
+      stores.kernel.queries.forEach((_, queryFn) => {
+        addQueryToPlan(stores, queryPlan, dataComputationCallBacks, viewsTriggeringCallBacks, writeParamsObj, queryFn);
+      });
+    }
+    const computeData = () => {
+      dataComputationCallBacks.forEach((cb: () => void) => cb());
+    };
+    const triggerViews = () => {
+      viewsTriggeringCallBacks.forEach((cb: () => void) => cb());
+    };
+    return { queryPlan, computeData, triggerViews };
+  };
+  
