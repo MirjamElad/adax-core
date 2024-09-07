@@ -7,7 +7,7 @@
     "build" : "tsup src/index.ts --format esm,cjs --minify --dts",
     "clean": "rimraf node_modules && rimraf dist",
     "dev" : "tsup src/index.ts --format esm,cjs --watch --dts",
-    "publish-packages": "npm login && npm publish --access restricted"
+    "publish": "npm login && npm publish --access restricted"
   },
   "keywords": [],
   "author": "",
