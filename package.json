@@ -1,6 +1,6 @@
 {
   "name": "adax-core",
-  "version": "0.1.8",
+  "version": "0.1.10",
   "main": "./dist/index.ts",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -13,9 +13,7 @@
     "test": "npx jest",
     "build" : "tsup src/index.ts --format esm,cjs --dts",
     "clean": "rimraf node_modules && rimraf dist",
-    "dev" : "tsup src/index.ts --format esm,cjs --watch --dts",
-    "publish:github": "git push origin main -m $1",
-    "publish:github-npm": "git tag -a $2 -m $1 && git push origin $1"
+    "dev" : "tsup src/index.ts --format esm,cjs --watch --dts"
   },
   "keywords": [],
   "author": "",
