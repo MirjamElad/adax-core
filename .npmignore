@@ -1,0 +1,6 @@
+# .npmignore
+.git/
+coverage/
+node_modules/
+src/
+*.log
