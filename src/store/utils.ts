@@ -42,37 +42,3 @@ export const debounce = (func: Function, wait: number) => {
     }, wait);
   };
 };
-// consider:  https://github.com/pixa-pics/joyson#readme
-//            https://github.com/ungap/structured-clone/#readme
-// export const clone: <T>(obj: T) => T = <T>(obj: T) => {
-//   const simplifyStructure= (obj: any, asKey: boolean = false): any => {
-//     if (typeof obj === 'function') {
-//       return asKey ? obj.name :{[obj.name]: obj.toString()};
-//     }
-//     if (Array.isArray(obj)) {
-//       return obj.map((x) => simplifyStructure(x, false));
-//     }
-//     if (obj instanceof Map || obj instanceof WeakMap) {
-//       const serializedMap: any = {};
-//       for (const [key, value] of obj) {
-//         serializedMap[simplifyStructure(key, true)] = simplifyStructure(value);
-//       }
-//       return serializedMap;
-//     }
-//     if (obj instanceof Set || obj instanceof WeakSet) {
-//       const serializedSet: any = [];
-//       for (const value of obj) {
-//         serializedSet.push(simplifyStructure(value));
-//       }
-//       return serializedSet;
-//     }
-//     if (typeof obj !== 'object' || obj === null) return obj;
-//     const clonedObj: any = {};
-//     for (const key in obj) {
-//       clonedObj[key] = simplifyStructure(obj[key]);
-//     }
-//     return clonedObj;
-//   };
-//   const s = simplifyStructure(obj);
-//   return structuredClone(s);
-// }

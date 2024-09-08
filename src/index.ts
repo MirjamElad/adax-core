@@ -2,7 +2,7 @@ import { KernelStore, kernelStore } from './store/index';
 import { getQueryPlan } from './store/read';
 import { addQuery, removeQuery, afterWrite } from './store/write';
 import { debounce, throttle, isInternal } from './store/utils';
-import type { QueryOptions, Result, QueryFn, QueryPlanInstance } from "./store/type";
+import type { QueryOptions, Result } from "./store/type";
 
 export type { QueryOptions, Result } from "./store/type";
 export { KernelStore, kernelStore } from './store/index';
@@ -11,7 +11,7 @@ export { addQuery, removeQuery, addRule, removeRule, clearAllRules, afterWrite }
 
 
 export const getSortedID = kernelStore.getSortedID;
-// Extra comment to force new version 0.0.11
+
 export const trigger = <FnType extends (x: any) => void>(
     writeFn: FnType,
     writeParamsObj: Parameters<FnType>[0],
@@ -20,7 +20,6 @@ export const trigger = <FnType extends (x: any) => void>(
     const { queryPlan, computeData, triggerViews } = getQueryPlan({writeFn, writeParamsObj}, stores);    
     writeFn(writeParamsObj);
     computeData();
-    //TODO: timeout means triggering views delayed after both triggering beforeWrite + afterWrite.. => too late to cancel?
     setTimeout(()=> {
       triggerViews();
       if (!isInternal(writeFn)) {

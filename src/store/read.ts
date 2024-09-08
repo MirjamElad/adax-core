@@ -7,15 +7,15 @@ import {
 import { isInternal } from './utils';
 import { KernelStore, kernelStore } from './index';
 
-export const getExecStack = (_: any = null, stores: { kernel: KernelStore } = { kernel: kernelStore }) => (stores?.kernel?.execStack || []);
+export const getExecStack = (_: any = null, stores: { kernel: KernelStore } = { kernel: kernelStore }) => 
+    (stores?.kernel?.execStack || []);
 
 const computeData = (queryInstance: QueryInstance, queryFn: QueryFn) => {
   queryInstance.result!.prevData = queryInstance.result!.data;
   queryInstance.result!.data = queryFn(queryInstance.paramsObj);
   queryInstance.result!.version = queryInstance.result!.version + 1;
 }
-// consider:  https://github.com/pixa-pics/joyson#readme
-//            https://github.com/ungap/structured-clone/#readme
+
 const viewTrigger = (queryInstance: QueryInstance) => {
   if (queryInstance.options?.hasResultChanged ? 
       queryInstance.options?.hasResultChanged(queryInstance.result!.prevData, queryInstance.result!.data) :  

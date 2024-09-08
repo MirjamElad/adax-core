@@ -32,8 +32,6 @@ export const addRule = ({ writeFn, queryFn, skip }: {
   if (!reverseRule.has(writeFn)) {
     reverseRule.add(writeFn);
   }
-  // console.info('rule: ', rule);
-  // console.info('reverseRule: ', reverseRule);
 };
 
 export const removeRule = ({ writeFn, queryFn}: {

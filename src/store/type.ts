@@ -21,14 +21,13 @@ export type SkipCondition = (
 ) => boolean | undefined;
 
 export type QueryOptions = {
-  //cmpId in lieu of "random" ${++Kernel.CMP_ID_Cpt}
   cmpId?: string | number;
   hasResultChanged?: (prevData: any, data: any) => boolean;
   // debounce/throttle callBack to query & re-render
   debounceMs?: number;
   throttleMs?: number;
   skipInitalQuerying?: boolean; // if true the "hook" only calls readFn onChange and not on inital call of the hook!
-  //We allow adax helpers to pass any extra option!
+  //We allow adax adapters to pass any extra option!
   [key: string]: any;
 };
 
