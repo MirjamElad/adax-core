@@ -4,6 +4,7 @@
   "main": "./dist/index.ts",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
+  "description": "adax core",
   "repository": {
     "type": "git",
     "url": "https://github.com/MirjamElad/adax-core.git"
@@ -13,16 +14,17 @@
     "README.md",
     "LICENSE"
   ],
+  "author": "Mirjam Elad",
+  "license": "private for now",
+  "sideEffects": false,
   "scripts": {
     "test": "npx jest",
     "build" : "tsup src/index.ts --format esm,cjs --dts",
-    "clean": "rimraf node_modules && rimraf dist",
-    "dev" : "tsup src/index.ts --format esm,cjs --watch --dts"
+    "clean": "rimraf node_modules && rimraf dist && rimraf coverage",
+    "dev" : "tsup src/index.ts --format esm,cjs --watch --dts",
+    "pack:local": "npm pack"
   },
-  "keywords": [],
-  "author": "",
-  "license": "private for now",
-  "description": "",
+  "keywords": ["micro frontends", "state management"],
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "jest": "^29.7.0",
