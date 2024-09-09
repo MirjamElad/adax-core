@@ -35,6 +35,8 @@ export type Result = {
   version: number;
   data: any;
   prevData: any;
+  writeFn: ((x: any) => void) | undefined;
+  writeParamsObj: unknown | undefined;
 };
 
 export type QueryInstance = {

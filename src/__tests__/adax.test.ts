@@ -1,4 +1,4 @@
-import { trigger, subscribe, addRule, removeRule, clearAllRules, Result, kernelStore, KernelStore } from '../index';
+import { trigger, subscribe, addRule, removeRule, clearAllRules, kernelStore, KernelStore, Result } from '../index';
 
 type ColorCounterTuple = {
   counter: number,
@@ -50,9 +50,9 @@ describe("adax without rules, basics", () => {
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
-    expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1})
+    expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}})
     expect(readTrigger_2).toHaveBeenCalledTimes(1);
-    expect(readTrigger_2).toHaveBeenLastCalledWith({data: 0, prevData: 0, version: 1})
+    expect(readTrigger_2).toHaveBeenLastCalledWith({data: 0, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}})
   });
 
   it("mounting a query more than once has no bearing on how many times it fires", async () => {
@@ -68,9 +68,9 @@ describe("adax without rules, basics", () => {
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
-    expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1})
+    expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}})
     expect(readTrigger_2).toHaveBeenCalledTimes(1);
-    expect(readTrigger_2).toHaveBeenLastCalledWith({data: 0, prevData: 0, version: 1})
+    expect(readTrigger_2).toHaveBeenLastCalledWith({data: 0, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}})
   });
 
   it("trigger causes ONLY mounted queries to fire", async () => {
@@ -82,7 +82,7 @@ describe("adax without rules, basics", () => {
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
-    expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1})
+    expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}})
     expect(readTrigger_2).not.toHaveBeenCalled();
   });
 
@@ -97,7 +97,7 @@ describe("adax without rules, basics", () => {
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
-    expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1})
+    expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}})
     expect(readTrigger_2).not.toHaveBeenCalled();
   });
 
@@ -115,9 +115,9 @@ describe("adax without rules, basics", () => {
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
-    expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1})
+    expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}})
     expect(readTrigger_2).toHaveBeenCalledTimes(2);
-    expect(readTrigger_2).toHaveBeenLastCalledWith({data: 0, prevData: 0, version: 2})
+    expect(readTrigger_2).toHaveBeenLastCalledWith({data: 0, prevData: 0, version: 2, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}})
   });
 
   it("only trigger causes queries to fire", async () => {
@@ -153,7 +153,7 @@ describe("adax without rules, basics", () => {
     //trigger
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
-    expect(readTrigger).toHaveBeenLastCalledWith({data: 3, prevData: 0, version: 1})
+    expect(readTrigger).toHaveBeenLastCalledWith({data: 3, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}})
   });
 
   it("trigger unecessary read (second time with no data changes) ensures data == prevData for 'by value' returns", async () => {
@@ -166,7 +166,7 @@ describe("adax without rules, basics", () => {
     trigger(incrementCounterByTeam, {team: 'left'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger).toHaveBeenCalledTimes(2);
-    expect(readTrigger).toHaveBeenLastCalledWith({data: 1, prevData: 1, version: 2});
+    expect(readTrigger).toHaveBeenLastCalledWith({data: 1, prevData: 1, version: 2, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'left'}});
   });
   
   it("Subscribing to query n-times, then launchign proper trigger causes call back to fire n-times", async () => {
@@ -223,9 +223,9 @@ describe("adax with rules, basics", () => {
     expect(readTrigger_1).not.toHaveBeenCalled();
     expect(readTrigger_2).not.toHaveBeenCalled();
     expect(readTrigger_3).toHaveBeenCalledTimes(1);
-    expect(readTrigger_3).toHaveBeenLastCalledWith({data: { color: 'red', counter: 1}, prevData: { color: 'red', counter: 1}, version: 1});
+    expect(readTrigger_3).toHaveBeenLastCalledWith({data: { color: 'red', counter: 1}, prevData: { color: 'red', counter: 1}, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
     expect(readTrigger_4).toHaveBeenCalledTimes(1);
-    expect(readTrigger_4).toHaveBeenLastCalledWith({data: { color: 'blue', counter: 0}, prevData: { color: 'blue', counter: 0}, version: 1});
+    expect(readTrigger_4).toHaveBeenLastCalledWith({data: { color: 'blue', counter: 0}, prevData: { color: 'blue', counter: 0}, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
     expect(readTrigger_5).toHaveBeenCalledTimes(1);
   });
 
@@ -249,14 +249,14 @@ describe("adax with rules, basics", () => {
     await new Promise(resolve => setTimeout(resolve, 1));
     ////////// readTrigger_1 & readTrigger_2 are called because getCounterByTeam is not in any rule! ////////////
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
-    expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1});
+    expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
     expect(readTrigger_2).toHaveBeenCalledTimes(1);
-    expect(readTrigger_2).toHaveBeenLastCalledWith({data: 0, prevData: 0, version: 1});
+    expect(readTrigger_2).toHaveBeenLastCalledWith({data: 0, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
     ////////////////////////////////////////////////////////////
     expect(readTrigger_3).toHaveBeenCalledTimes(1);
-    expect(readTrigger_3).toHaveBeenLastCalledWith({data: { color: 'red', counter: 1}, prevData: { color: 'red', counter: 1}, version: 1});
+    expect(readTrigger_3).toHaveBeenLastCalledWith({data: { color: 'red', counter: 1}, prevData: { color: 'red', counter: 1}, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
     expect(readTrigger_4).toHaveBeenCalledTimes(1);
-    expect(readTrigger_4).toHaveBeenLastCalledWith({data: { color: 'blue', counter: 0}, prevData: { color: 'blue', counter: 0}, version: 1});
+    expect(readTrigger_4).toHaveBeenLastCalledWith({data: { color: 'blue', counter: 0}, prevData: { color: 'blue', counter: 0}, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
   });
 
   it("triggering a writeFn that is NOT in any rule causes ALL queries (regardless if they are in rules or not) to fire", async () => {
@@ -282,14 +282,14 @@ describe("adax with rules, basics", () => {
     await new Promise(resolve => setTimeout(resolve, 1));
     ////////// readTrigger_1 & readTrigger_2 are called because getCounterByTeam is not in any rule! ////////////
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
-    expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1});
+    expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
     expect(readTrigger_2).toHaveBeenCalledTimes(1);
-    expect(readTrigger_2).toHaveBeenLastCalledWith({data: 0, prevData: 0, version: 1});
+    expect(readTrigger_2).toHaveBeenLastCalledWith({data: 0, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
     ////////////////////////////////////////////////////////////
     expect(readTrigger_3).toHaveBeenCalledTimes(1);
-    expect(readTrigger_3).toHaveBeenLastCalledWith({data: { color: 'red', counter: 1}, prevData: { color: 'red', counter: 1}, version: 1});
+    expect(readTrigger_3).toHaveBeenLastCalledWith({data: { color: 'red', counter: 1}, prevData: { color: 'red', counter: 1}, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
     expect(readTrigger_4).toHaveBeenCalledTimes(1);
-    expect(readTrigger_4).toHaveBeenLastCalledWith({data: { color: 'blue', counter: 0}, prevData: { color: 'blue', counter: 0}, version: 1});
+    expect(readTrigger_4).toHaveBeenLastCalledWith({data: { color: 'blue', counter: 0}, prevData: { color: 'blue', counter: 0}, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
   });
 
   it("all subciptions to queries fire regardless of rules if the current kernel's runAllQueries is true", async () => {
@@ -330,13 +330,13 @@ describe("adax with rules, basics", () => {
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
-    expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1});
+    expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
     expect(readTrigger_2).toHaveBeenCalledTimes(1);
-    expect(readTrigger_2).toHaveBeenLastCalledWith({data: 0, prevData: 0, version: 1});
+    expect(readTrigger_2).toHaveBeenLastCalledWith({data: 0, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
     expect(readTrigger_3).toHaveBeenCalledTimes(1);
-    expect(readTrigger_3).toHaveBeenLastCalledWith({data: { color: 'red', counter: 1}, prevData: { color: 'red', counter: 1}, version: 1});
+    expect(readTrigger_3).toHaveBeenLastCalledWith({data: { color: 'red', counter: 1}, prevData: { color: 'red', counter: 1}, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
     expect(readTrigger_4).toHaveBeenCalledTimes(1);
-    expect(readTrigger_4).toHaveBeenLastCalledWith({data: { color: 'blue', counter: 0}, prevData: { color: 'blue', counter: 0}, version: 1});
+    expect(readTrigger_4).toHaveBeenLastCalledWith({data: { color: 'blue', counter: 0}, prevData: { color: 'blue', counter: 0}, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
   });
   
   it("trigger stops causing queries removed from rules to fire", async () => {
@@ -353,21 +353,21 @@ describe("adax with rules, basics", () => {
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(getCounterByTeamRight).toHaveBeenCalledTimes(1);
     expect(getCounterByTeamLeft).toHaveBeenCalledTimes(1);
-    expect(getCounterByTeamRight).toHaveBeenLastCalledWith({data: 1, prevData:0, version: 1});
-    expect(getCounterByTeamLeft).toHaveBeenLastCalledWith({data: 0, prevData:0, version: 1});
+    expect(getCounterByTeamRight).toHaveBeenLastCalledWith({data: 1, prevData:0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
+    expect(getCounterByTeamLeft).toHaveBeenLastCalledWith({data: 0, prevData:0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
     //removing the rule for getCounterByTeam but adding another rule not have empty rules ( when zero rules: ALL queries are called!)
     removeRule({writeFn: incrementCounterByTeam, queryFn: getCounterByTeam});
     //////////////////////////////////////////////////////////////////////////
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
-    expect(getCounterByTeamRight).toHaveBeenLastCalledWith({data: 1, prevData:0, version: 1});
-    expect(getCounterByTeamLeft).toHaveBeenLastCalledWith({data: 0, prevData:0, version: 1});
+    expect(getCounterByTeamRight).toHaveBeenLastCalledWith({data: 1, prevData:0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
+    expect(getCounterByTeamLeft).toHaveBeenLastCalledWith({data: 0, prevData:0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
 
     addRule({writeFn: incrementCounterByTeam, queryFn: getCounterByTeam})
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
-    expect(getCounterByTeamRight).toHaveBeenLastCalledWith({data: 3, prevData:1, version: 2});
-    expect(getCounterByTeamLeft).toHaveBeenLastCalledWith({data: 0, prevData:0, version: 2});
+    expect(getCounterByTeamRight).toHaveBeenLastCalledWith({data: 3, prevData:1, version: 2, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
+    expect(getCounterByTeamLeft).toHaveBeenLastCalledWith({data: 0, prevData:0, version: 2, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
   });
 
   it("only trigger causes queries to fire", async () => {
@@ -405,7 +405,7 @@ describe("adax with rules, basics", () => {
     //trigger
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
-    expect(readTrigger).toHaveBeenLastCalledWith({data: 3, prevData: 0, version: 1})
+    expect(readTrigger).toHaveBeenLastCalledWith({data: 3, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}})
   });
 
   it("trigger unecessary read (second time with no data changes) ensures data == prevData for 'by value' returns", async () => {
@@ -419,7 +419,7 @@ describe("adax with rules, basics", () => {
     trigger(incrementCounterByTeam, {team: 'left'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger).toHaveBeenCalledTimes(2);
-    expect(readTrigger).toHaveBeenLastCalledWith({data: 1, prevData: 1, version: 2});
+    expect(readTrigger).toHaveBeenLastCalledWith({data: 1, prevData: 1, version: 2, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'left'}});
   });
   
   it("trigger can skip queries in rules to fire", async () => {
@@ -443,11 +443,19 @@ describe("adax by default, queries return expected data, prevData & version", ()
   beforeEach(() => resetStore());
   afterEach(() => resetStore());
   it("adax by default, data === prevData for 'by reference' returns", async () => {
-    let result= {data: {}, prevData: {}, version: 0 };
-    const readTrigger = ({data, prevData, version}: {data: ColorCounterTuple, prevData: ColorCounterTuple, version: number}) => {
+    let result: Result = {data: {}, prevData: {}, version: 0, writeFn: undefined, writeParamsObj: undefined };
+    const readTrigger = ({data, prevData, version, writeFn, writeParamsObj}:{
+        data: ColorCounterTuple, 
+        prevData: ColorCounterTuple, 
+        version: number,
+        writeFn: ((x: any) => void) | undefined,
+        writeParamsObj: unknown | undefined
+      }) => {
       result.data = data;
       result.prevData = prevData;
       result.version = version;
+      result.writeFn = writeFn;
+      result.writeParamsObj = writeParamsObj;
     };
     const { onMounted } = subscribe(readTrigger, getByTeam, {team: 'right'});
     onMounted();
@@ -456,15 +464,25 @@ describe("adax by default, queries return expected data, prevData & version", ()
     expect(result.data).toEqual({ color: 'red',   counter: 1});
     expect(result.prevData).toEqual({ color: 'red',   counter: 1});
     expect(result.version).toEqual(1);
+    expect(result.writeFn).toEqual(incrementCounterByTeam);
+    expect(result.writeParamsObj).toEqual({team: 'right'});
     expect(result.data === result.prevData).toBeTruthy();
   });
 
   it("adax by default, data !== prevData for 'by value' returns", async () => {
-    let result= {data: 0, prevData: 0, version: 0 };
-    const readTrigger = ({data, prevData, version}: {data: number, prevData: number, version: number}) => {
+    let result: Result = {data: {}, prevData: {}, version: 0, writeFn: undefined, writeParamsObj: undefined };
+    const readTrigger = ({data, prevData, version, writeFn, writeParamsObj}:{
+      data: ColorCounterTuple, 
+      prevData: ColorCounterTuple, 
+      version: number,
+      writeFn: ((x: any) => void) | undefined,
+      writeParamsObj: unknown | undefined
+    }) => {
       result.data = data;
       result.prevData = prevData;
       result.version = version;
+      result.writeFn = writeFn;
+      result.writeParamsObj = writeParamsObj;
     };
     const { onMounted } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
     onMounted();
@@ -473,12 +491,14 @@ describe("adax by default, queries return expected data, prevData & version", ()
     expect(result.version).toEqual(1);
     expect(result.data).toEqual(1);
     expect(result.prevData).toEqual(0);
+    expect(result.writeFn).toEqual(incrementCounterByTeam);
+    expect(result.writeParamsObj).toEqual({team: 'right'});
     expect(result.data === result.prevData).not.toBeTruthy();
   });
 
   it("adax by default, data !== prevData for 'aggregate' returns ", async () => {
-    let result_1 = {data: { total: 0 }, prevData: { total: 0 }, version: 0 };
-    let result_2 = {data: { total: 0 }, prevData: { total: 0 }, version: 0 };
+    let result_1: Result = {data: { total: 0 }, prevData: { total: 0 }, version: 0 , writeFn: undefined, writeParamsObj: undefined };
+    let result_2: Result = {data: { total: 0 }, prevData: { total: 0 }, version: 0 , writeFn: undefined, writeParamsObj: undefined };
     let result_1_computed = false;
     const readTrigger = ({data, prevData, version}: {data: { total:number }, prevData: { total:number }, version: number}) => {
       if (!result_1_computed) {
@@ -644,9 +664,9 @@ describe("adax with options", () => {
     onMounted_1();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
-    expect(readTrigger_without_skipInitalQuerying).toHaveBeenCalledWith({data: 1, prevData: 0, version: 1});
+    expect(readTrigger_without_skipInitalQuerying).toHaveBeenCalledWith({data: 1, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
     // prevData: undefine // because function only called onChange and NOT initially
-    expect(readTrigger_skipInitalQuerying).toHaveBeenCalledWith({data: 1, prevData: undefined, version: 1+0});
+    expect(readTrigger_skipInitalQuerying).toHaveBeenCalledWith({data: 1, prevData: undefined, version: 1+0, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
   });
 
   it("setting a debounce option works", async () => {

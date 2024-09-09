@@ -3,6 +3,7 @@ import {
     QueryPlanInstance,
     QueryInstance,
     SkipCondition,
+    Result
 } from './type';
 import { isInternal } from './utils';
 import { KernelStore, kernelStore } from './index';
@@ -10,10 +11,12 @@ import { KernelStore, kernelStore } from './index';
 export const getExecStack = (_: any = null, stores: { kernel: KernelStore } = { kernel: kernelStore }) => 
     (stores?.kernel?.execStack || []);
 
-const computeData = (queryInstance: QueryInstance, queryFn: QueryFn) => {
+const computeData = (queryInstance: QueryInstance, queryFn: QueryFn, writeFn: (x: any) => void, writeParamsObj: unknown) => {
   queryInstance.result!.prevData = queryInstance.result!.data;
   queryInstance.result!.data = queryFn(queryInstance.paramsObj);
   queryInstance.result!.version = queryInstance.result!.version + 1;
+  queryInstance.result!.writeFn = writeFn;
+  queryInstance.result!.writeParamsObj = writeParamsObj;
 }
 
 const viewTrigger = (queryInstance: QueryInstance) => {
@@ -31,6 +34,7 @@ const addQueryToPlan = (
   viewsTriggeringCallBacks: (() => void)[] = [],
   writeParamsObj: unknown,
   queryFn: QueryFn,
+  writeFn: (x: any) => void,
   skip: SkipCondition | undefined = undefined
 ) => {
   stores.kernel.queries?.get(queryFn)?.forEach((queryInstance) => {
@@ -44,10 +48,12 @@ const addQueryToPlan = (
       version: 0,
       data: undefined,
       prevData: undefined,
+      writeFn: undefined,
+      writeParamsObj: undefined
     };
     if (!_skip && queryInstance?.readTrigger) {
       dataComputationCallBacks.push(() => {
-        computeData(queryInstance, queryFn);
+        computeData(queryInstance, queryFn, writeFn, writeParamsObj);
       });
       viewsTriggeringCallBacks.push(() => {
         queryInstance?.readTrigger && viewTrigger(queryInstance);
@@ -71,19 +77,19 @@ export const  getQueryPlan = <FnType extends (x: any) => void>({writeFn, writePa
       const queryFnMap = stores.kernel.rules.get(writeFn)!.readersMap;
       if (!!queryFnMap?.size) {
         queryFnMap?.forEach ((skip, queryFn) => {
-          addQueryToPlan(stores, queryPlan, dataComputationCallBacks, viewsTriggeringCallBacks, writeParamsObj, queryFn, skip);
+          addQueryToPlan(stores, queryPlan, dataComputationCallBacks, viewsTriggeringCallBacks, writeParamsObj, queryFn, writeFn, skip);
         });
       }
       if (stores.kernel.queries.size > stores.kernel.reverseRules.size) {
         stores.kernel.queries.forEach((_, queryFn) => {
           if (!stores.kernel.reverseRules.has(queryFn)) {
-            addQueryToPlan(stores, queryPlan, dataComputationCallBacks, viewsTriggeringCallBacks, writeParamsObj, queryFn);
+            addQueryToPlan(stores, queryPlan, dataComputationCallBacks, viewsTriggeringCallBacks, writeParamsObj, queryFn, writeFn);
           }          
         });        
       }
     } else if (!isInternal(writeFn)) {
       stores.kernel.queries.forEach((_, queryFn) => {
-        addQueryToPlan(stores, queryPlan, dataComputationCallBacks, viewsTriggeringCallBacks, writeParamsObj, queryFn);
+        addQueryToPlan(stores, queryPlan, dataComputationCallBacks, viewsTriggeringCallBacks, writeParamsObj, queryFn, writeFn);
       });
     }
     const computeData = () => {

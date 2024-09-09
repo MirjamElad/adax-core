@@ -36,7 +36,13 @@ export const subscribe = <FnType extends (x: any) => any>(
   stores: { kernel: KernelStore } = { kernel: kernelStore }
 ) => {
   const cmpId = options.cmpId ?? getSortedID();
-  const result = { data: options?.skipInitalQuerying ? undefined :readFn(paramsObj), prevData: undefined, version: 0 };
+  const result: Result = {
+    data: options?.skipInitalQuerying ? undefined :readFn(paramsObj),
+    prevData: undefined,
+    version: 0,
+    writeFn: undefined,
+    writeParamsObj: undefined
+  };
   let _trigger = readTrigger;
   if (options.debounceMs || options.throttleMs) {
     if (options.debounceMs && options.throttleMs) {
@@ -64,7 +70,13 @@ export const subscribe = <FnType extends (x: any) => any>(
       readTrigger: undefined,
       paramsObj: paramsObj || {},
       options,
-      result: { data: undefined, prevData: undefined, version: 0 }
+      result: {
+        data: undefined,
+        prevData: undefined,
+        version: 0,
+        writeFn: undefined,
+        writeParamsObj: undefined
+      }
     }}, stores);
   }
   return { result, onMounted, onBeforeUnmount };
