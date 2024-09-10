@@ -442,7 +442,33 @@ describe("adax with rules, basics", () => {
 describe("adax by default, queries return expected data, prevData & version", () => {
   beforeEach(() => resetStore());
   afterEach(() => resetStore());
-  it("adax by default, data === prevData for 'by reference' returns", async () => {
+  it("adax's subscribtion returns expected result (data, prevData, version, writeFn & writeParamsObj)", async () => {
+    let result: Result = {data: {}, prevData: {}, version: 0, writeFn: undefined, writeParamsObj: undefined };
+    const readTrigger = ({data, prevData, version, writeFn, writeParamsObj}:{
+        data: ColorCounterTuple, 
+        prevData: ColorCounterTuple, 
+        version: number,
+        writeFn: ((x: any) => void) | undefined,
+        writeParamsObj: unknown | undefined
+      }) => {
+      result.data = data;
+      result.prevData = prevData;
+      result.version = version;
+      result.writeFn = writeFn;
+      result.writeParamsObj = writeParamsObj;
+    };
+    const { onMounted } = subscribe(readTrigger, getByTeam, {team: 'right'});
+    onMounted();
+    trigger(incrementCounterByTeam, {team: 'right'});
+    await new Promise(resolve => setTimeout(resolve, 1));
+    expect(result.data).toEqual({ color: 'red',   counter: 1});
+    expect(result.prevData).toEqual({ color: 'red',   counter: 1});
+    expect(result.version).toEqual(1);
+    expect(result.writeFn).toEqual(incrementCounterByTeam);
+    expect(result.writeParamsObj).toEqual({team: 'right'});
+  });
+
+  it("adax by default, data === prevData for 'by reference' truthy", async () => {
     let result: Result = {data: {}, prevData: {}, version: 0, writeFn: undefined, writeParamsObj: undefined };
     const readTrigger = ({data, prevData, version, writeFn, writeParamsObj}:{
         data: ColorCounterTuple, 
@@ -469,7 +495,7 @@ describe("adax by default, queries return expected data, prevData & version", ()
     expect(result.data === result.prevData).toBeTruthy();
   });
 
-  it("adax by default, data !== prevData for 'by value' returns", async () => {
+  it("adax by default, data === prevData for 'by value' NOT truthy", async () => {
     let result: Result = {data: {}, prevData: {}, version: 0, writeFn: undefined, writeParamsObj: undefined };
     const readTrigger = ({data, prevData, version, writeFn, writeParamsObj}:{
       data: ColorCounterTuple, 
@@ -536,7 +562,7 @@ describe("adax by default, queries return expected data, prevData & version", ()
     expect(result_2.data !== result_2.prevData).toBeTruthy();
   });
   
-  it("trigger unecessary read (second time with no data changes) data === prevData for 'by reference' returns", async () => {
+  it("trigger unecessary read (second time with no data changes) data === prevData for 'by reference' truthy", async () => {
     let result= {data: {}, prevData: {}, version: 0 };
     const readTrigger = ({data, prevData, version}: {data: ColorCounterTuple, prevData: ColorCounterTuple, version: number}) => {
       result.data = data;
@@ -555,7 +581,7 @@ describe("adax by default, queries return expected data, prevData & version", ()
     expect(result.data === result.prevData).toBeTruthy();
   });
 
-  it("trigger unecessary read (second time with no data changes) data === prevData for 'by value' returns ", async () => {
+  it("trigger unecessary read (second time with no data changes) data === prevData for 'by value' truthy", async () => {
     let result= {data: 0, prevData: 0, version: 0 };
     const readTrigger = ({data, prevData, version}: {data: number, prevData: number, version: number}) => {
       result.data = data;
@@ -575,7 +601,7 @@ describe("adax by default, queries return expected data, prevData & version", ()
     expect(result.data === result.prevData).toBeTruthy();
   });
 
-  it("trigger unecessary read (second time with no data changes) data !== prevData for 'aggregate' returns ", async () => {
+  it("trigger unecessary read (second time with no data changes) data !== prevData", async () => {
     let result_1 = {data: { total: 0 }, prevData: { total: 0 }, version: 0 };
     let result_2 = {data: { total: 0 }, prevData: { total: 0 }, version: 0 };
     let result_1_computed = false;
