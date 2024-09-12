@@ -6,6 +6,7 @@ import {
     OnWriteRule,
   } from './type';
 class KernelStore {
+    isDefaultKernelStore: boolean = true;
     runAllQueries: boolean = false;
     // What writeFn cause what queryFn to run
     rules: Map<WriteFn, OnWriteRule>;
@@ -28,6 +29,8 @@ class KernelStore {
         this.rules = rules;
         this.queries = queries;
         this.reverseRules = reverseRules;
+        /* istanbul ignore next */
+        this.isDefaultKernelStore = !KernelStore.instances?.length;
         KernelStore.instances.push(this);
     }
 
@@ -36,6 +39,7 @@ class KernelStore {
     }
 
     public getSortedID = () => {
+        /* istanbul ignore if */
         if(!KernelStore.incrCpt && typeof sessionStorage !== 'undefined') {
             KernelStore.sessionCpt = Number(sessionStorage.getItem('adax-sessionCpt')) || 0;
             sessionStorage.setItem('adax-sessionCpt', `${KernelStore.sessionCpt+1}`);

@@ -8,10 +8,10 @@ import {
 import { isInternal } from './utils';
 import { KernelStore, kernelStore } from './index';
 
-export const getExecStack = (_: any = null, stores: { kernel: KernelStore } = { kernel: kernelStore }) => 
-    (stores?.kernel?.execStack || []);
+export const getExecStack = (_: any = null, stores: { kernel: KernelStore } = { kernel: kernelStore }) =>
+  (stores?.kernel?.execStack || []);
 
-const computeData = (queryInstance: QueryInstance, queryFn: QueryFn, writeFn: (x: any) => void, writeParamsObj: unknown) => {
+const setResult = (queryInstance: QueryInstance, queryFn: QueryFn, writeFn: (x: any) => void, writeParamsObj: unknown) => {
   queryInstance.result!.prevData = queryInstance.result!.data;
   queryInstance.result!.data = queryFn(queryInstance.paramsObj);
   queryInstance.result!.version = queryInstance.result!.version + 1;
@@ -53,7 +53,7 @@ const addQueryToPlan = (
     };
     if (!_skip && queryInstance?.readTrigger) {
       dataComputationCallBacks.push(() => {
-        computeData(queryInstance, queryFn, writeFn, writeParamsObj);
+        setResult(queryInstance, queryFn, writeFn, writeParamsObj);
       });
       viewsTriggeringCallBacks.push(() => {
         queryInstance?.readTrigger && viewTrigger(queryInstance);

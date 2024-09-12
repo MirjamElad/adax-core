@@ -36,6 +36,27 @@ const incrementCounterByTeam: ({team}: {team: 'right' | 'left'},  stores?: {test
 const decrementCounterByTeam: ({team}: {team: 'right' | 'left'},  stores?: {testStore: TestStore}) => void  =
   ({team}: {team: 'right' | 'left'} = {team: 'right'},  stores = { testStore }) => testStore[team] && testStore[team].counter--;
 
+
+  describe("adax's kernel stores", () => {
+    beforeEach(() => resetStore());
+    afterEach(() => resetStore());
+
+    it("KernelStore keeps track of all its instances", async () => {
+      const nonDefaultKernelStore = new KernelStore();
+      const instancesList = KernelStore.getAllInstances();
+      expect(instancesList.length).toEqual(2);
+      expect(instancesList[0].isDefaultKernelStore).toEqual(true);
+      expect(instancesList[1].isDefaultKernelStore).toEqual(false);
+      expect(instancesList[1]).toEqual(nonDefaultKernelStore);
+    });
+    it("KernelStore getSortedID returns sorted ids", async () => {
+      const someKernelStore = KernelStore.getAllInstances()[0];
+      const firstId = someKernelStore.getSortedID();
+      const secondId = someKernelStore.getSortedID();
+      expect(firstId < secondId).toBeTruthy();
+    });
+  });
+
 describe("adax without rules, basics", () => {
   beforeEach(() => resetStore());
   afterEach(() => resetStore());
