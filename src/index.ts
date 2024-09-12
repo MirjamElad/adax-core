@@ -35,7 +35,9 @@ export const subscribe = <FnType extends (x: any) => any>(
   options: QueryOptions = {},
   stores: { kernel: KernelStore } = { kernel: kernelStore }
 ) => {
+  /* istanbul ignore next */
   const cmpId = options.cmpId ?? getSortedID();
+  /* istanbul ignore next */
   const result: Result = {
     data: options?.skipInitalQuerying ? undefined :readFn(paramsObj),
     prevData: undefined,

@@ -2,14 +2,6 @@
 import { afterWrite } from './write';
 export const isInternal = <FnType extends (x: any) => void>(writeFn: FnType) => writeFn === afterWrite;
 
-export const _Equal = (x: Object, y: Object) => {
-  try {
-    return JSON.stringify(x) === JSON.stringify(y);
-  } catch (err) {
-    return false;
-  }
-}
-
 export const throttle = (func: Function, wait: number) => {
   let timeout: ReturnType<typeof setTimeout>;
   let lastCall = 0;

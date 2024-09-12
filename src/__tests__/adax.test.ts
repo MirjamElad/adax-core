@@ -89,16 +89,23 @@ describe("adax without rules, basics", () => {
   it("trigger does NOT cause UN-MOUNTED queries to fire", async () => {
     const readTrigger_1 = jest.fn();
     const readTrigger_2 = jest.fn();
+    const readTrigger_3 = jest.fn();
     const { onMounted: onMounted_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
-    const { onMounted: onMounted_2, onBeforeUnmount } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
+    // readTrigger with arguments
+    const { onMounted: onMounted_2, onBeforeUnmount: onBeforeUnmount_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
+    // readTrigger without arguments
+    const { onMounted: onMounted_3, onBeforeUnmount: onBeforeUnmount_3 } = subscribe(readTrigger_3, getAll);
     onMounted_1();
     onMounted_2();
-    onBeforeUnmount();
+    onMounted_3();
+    onBeforeUnmount_2();
+    onBeforeUnmount_3();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
     expect(readTrigger_1).toHaveBeenLastCalledWith({data: 1, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}})
     expect(readTrigger_2).not.toHaveBeenCalled();
+    expect(readTrigger_3).not.toHaveBeenCalled();
   });
 
   it("trigger stops causing a query to be fired after that query has been unmounted", async () => {
@@ -678,14 +685,16 @@ describe("adax with options", () => {
     resetStore();
     clearAllRules();
   });
-  //skipInitalQuerying. comment to try n publish to npm
+
   it("setting a skipInitalQuerying option works", async () => {
     const readTrigger_without_skipInitalQuerying = jest.fn();
     const readTrigger_skipInitalQuerying = jest.fn();    
-    const { onMounted: onMounted_0 } = 
+    const { onMounted: onMounted_0, result: { data: data_0 } } = 
       subscribe(readTrigger_without_skipInitalQuerying, getCounterByTeam, {team: 'right'});
-    const { onMounted: onMounted_1 } = 
+    expect(data_0).toBeDefined();
+    const { onMounted: onMounted_1, result: { data: data_1 } } = 
       subscribe(readTrigger_skipInitalQuerying, getCounterByTeam, {team: 'right'}, { skipInitalQuerying: true });
+    expect(data_1).not.toBeDefined();
     onMounted_0();
     onMounted_1();
     trigger(incrementCounterByTeam, {team: 'right'});
@@ -750,5 +759,11 @@ describe("adax with options", () => {
     expect(callNum_1 > callNum_2).toBeTruthy();
     expect(callNum_1 <= Math.floor(timeInMilliseconds/10)).toBeTruthy();
     expect(callNum_2 <= Math.floor(timeInMilliseconds/20)).toBeTruthy();
+  });
+  
+  it("setting both throttle & debounce options throws an exception", () => {
+    expect(() => {
+      subscribe(() => {}, getCounterByTeam, {team: 'right'}, { debounceMs: 10, throttleMs: 10 })
+    }).toThrow("Cannot have both debounce and throttle options for any given query!");
   });
 });
