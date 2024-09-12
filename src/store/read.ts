@@ -8,8 +8,8 @@ import {
 import { isInternal } from './utils';
 import { KernelStore, kernelStore } from './index';
 
-export const getExecStack = (_: any = null, stores: { kernel: KernelStore } = { kernel: kernelStore }) =>
-  (stores?.kernel?.execStack || []);
+/* istanbul ignore next */
+export const getExecStack = (_: any = null, stores: { kernel: KernelStore } = { kernel: kernelStore }) => (stores?.kernel?.execStack || []);
 
 const setResult = (queryInstance: QueryInstance, queryFn: QueryFn, writeFn: (x: any) => void, writeParamsObj: unknown) => {
   queryInstance.result!.prevData = queryInstance.result!.data;

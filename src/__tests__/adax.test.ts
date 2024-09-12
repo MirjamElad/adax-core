@@ -37,29 +37,57 @@ const decrementCounterByTeam: ({team}: {team: 'right' | 'left'},  stores?: {test
   ({team}: {team: 'right' | 'left'} = {team: 'right'},  stores = { testStore }) => testStore[team] && testStore[team].counter--;
 
 
-  describe("adax's kernel stores", () => {
-    beforeEach(() => resetStore());
-    afterEach(() => resetStore());
+describe("adax's kernel stores", () => {
+  beforeEach(() => resetStore());
+  afterEach(() => resetStore());
 
-    it("KernelStore keeps track of all its instances", async () => {
-      const nonDefaultKernelStore = new KernelStore();
-      const instancesList = KernelStore.getAllInstances();
-      expect(instancesList.length).toEqual(2);
-      expect(instancesList[0].isDefaultKernelStore).toEqual(true);
-      expect(instancesList[1].isDefaultKernelStore).toEqual(false);
-      expect(instancesList[1]).toEqual(nonDefaultKernelStore);
-    });
-    it("KernelStore getSortedID returns sorted ids", async () => {
-      const someKernelStore = KernelStore.getAllInstances()[0];
-      const firstId = someKernelStore.getSortedID();
-      const secondId = someKernelStore.getSortedID();
-      expect(firstId < secondId).toBeTruthy();
-    });
+  it("KernelStore keeps track of all its instances", async () => {
+    const nonDefaultKernelStore = new KernelStore();
+    const instancesList = KernelStore.getAllInstances();
+    expect(instancesList.length).toEqual(2);
+    expect(instancesList[0].isDefaultKernelStore).toEqual(true);
+    expect(instancesList[1].isDefaultKernelStore).toEqual(false);
+    expect(instancesList[1]).toEqual(nonDefaultKernelStore);
   });
+  it("KernelStore getSortedID returns sorted ids", async () => {
+    const someKernelStore = KernelStore.getAllInstances()[0];
+    const firstId = someKernelStore.getSortedID();
+    const secondId = someKernelStore.getSortedID();
+    expect(firstId < secondId).toBeTruthy();
+  });
+});
 
 describe("adax without rules, basics", () => {
   beforeEach(() => resetStore());
   afterEach(() => resetStore());
+
+  it("all subciptions to queries fire if the last rule was removed until unmounted", async () => {
+    const readTrigger_1 = jest.fn(); 
+    const readTrigger_2 = jest.fn();
+    const readTrigger_3 = jest.fn();
+    addRule({writeFn: incrementCounterByTeam, queryFn: getByTeam});
+    const { onMounted: onMounted_1, onBeforeUnmount: onBeforeUnmount_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
+    const { onMounted: onMounted_2, onBeforeUnmount: onBeforeUnmount_2 } = subscribe(readTrigger_2, getByTeam, {team: 'right'});
+    const { onMounted: onMounted_3, onBeforeUnmount: onBeforeUnmount_3 } = subscribe(readTrigger_3, getAll);
+    onMounted_1();
+    onMounted_2();
+    onMounted_3();
+    //removing the only rule and thus cal all registered query callbacks!
+    removeRule({writeFn: incrementCounterByTeam, queryFn: getByTeam});
+    trigger(incrementCounterByTeam, {team: 'right'});
+    await new Promise(resolve => setTimeout(resolve, 1));
+    expect(readTrigger_1).toHaveBeenCalledTimes(1);
+    expect(readTrigger_2).toHaveBeenCalledTimes(1);
+    expect(readTrigger_3).toHaveBeenCalledTimes(1);
+    onBeforeUnmount_1();
+    onBeforeUnmount_2();
+    onBeforeUnmount_3();
+    trigger(incrementCounterByTeam, {team: 'right'});
+    await new Promise(resolve => setTimeout(resolve, 1));
+    expect(readTrigger_1).toHaveBeenCalledTimes(1);
+    expect(readTrigger_2).toHaveBeenCalledTimes(1);
+    expect(readTrigger_3).toHaveBeenCalledTimes(1);
+  });
 
   it("trigger causes ALL mounted queries to fire with proper results", async () => {
     const readTrigger_1 = jest.fn();
