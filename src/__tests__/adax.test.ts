@@ -782,7 +782,7 @@ describe("adax with options", () => {
     expect(callNum_1 == callNum_2).toBeTruthy();
   });
 
-  it("setting a debounce option works even when queryFn triggered by different write functions", async () => {
+  it("setting a debounce option works even when queryFn triggered by different write functions and WITHOUT rules", async () => {
     let callNum = 0;
     const readTrigger = () => {
       callNum++;
@@ -790,18 +790,27 @@ describe("adax with options", () => {
     const { onMounted } = subscribe(readTrigger, getCounterByTeam, {team: 'right'}, { debounceMs: 20 });
     onMounted();
     trigger(incrementCounterByTeam, {team: 'right'});
-    trigger(incrementCounterByTeam, {team: 'right'});
-    trigger(incrementCounterByTeam, {team: 'right'});
-    trigger(incrementCounterByTeam, {team: 'right'});
-    trigger(incrementCounterByTeam, {team: 'right'});
-    await new Promise(resolve => setTimeout(resolve, 5));
-    trigger(decrementCounterByTeam, {team: 'right'});
-    trigger(decrementCounterByTeam, {team: 'right'});
     trigger(decrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 50));
     expect(callNum).toEqual(1);
   });
   
+  
+  it("setting a debounce option works even when queryFn triggered by different write functions and WITH rules", async () => {
+    let callNum = 0;
+    const readTrigger = () => {
+      callNum++;
+    };
+    addRule({writeFn: incrementCounterByTeam, queryFn: getCounterByTeam});
+    addRule({writeFn: decrementCounterByTeam, queryFn: getCounterByTeam});
+    const { onMounted } = subscribe(readTrigger, getCounterByTeam, {team: 'right'}, { debounceMs: 20 });
+    onMounted();
+    trigger(incrementCounterByTeam, {team: 'right'});
+    trigger(decrementCounterByTeam, {team: 'right'});
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(callNum).toEqual(1);
+  });
+
   it("setting a throttling option works", async () => {
     let callNum_1 = 0;
     let callNum_2 = 0;
