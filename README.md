@@ -23,3 +23,27 @@ Not only is ADAX designed to be used by any front end library/framework but it a
 [See an example with all of React, Vue and Vanilla javascript here](https://github.com/MirjamElad/ADAX-Vanilla-Vue-React) 
 
 <sub>(**NB**: _**[adax-core](https://github.com/MirjamElad/adax-core)**_ can be used with vanilla javascript or any library/framework. However, it is more convenient to use an adapter of your favorite library. We released _**[adax-react](https://github.com/MirjamElad/adax-react)**_ whereas _**adax-vue**_ and _**adax-angular**_ are being tested. More adapters coming soon)</sub>
+
+
+#### Overview
+
+Here's a _Typical_ scenario showing one of the ways ADAX can be used. 
+
+<br /><center><Image src="/assets/ADAX-Figure-1.png" alt="Sample setup" width={300} height={300} /></center>
+
+One can start by defining the:
+
+* **State**: much like you define the local data/state of a single web component. You define the data/state for the full application or just a subset of it.
+_Organize your state in any way you want. Per component, per group of components or the full app. Place it in a single store, multiple stores, in JSON file(s) ...etc._ 
+
+* **Query**: (read) functions to reactively listen to the state changes. _Views and components need to subscribe to the data portions they are interested in. For maximum flexibility, they **subcribe to queries** rather then to predetermined objects_.
+
+* **Mutate**: (create, update, delete) functions to change the state. _Views and components can alter the app's data/state through functions as a result of user actions, server interactions, ...etc_.
+
+> As always, you can use regular and simple JavaScript/TypeScript to implement **Query** and **Mutate** functions. All such functions can be used in both visual and non-visual "components".
+
+* **Rules**: are ADAX's thin layer to allow the app to _listen_ to the state and _react_ to its changes. _I.e. Rules for which query functions must re-run due to which mutate functions and under what conditions_.
+
+ADAX has a tiny API surface: **trigger** and **useSync** to wrap mutate & query functions respectively (Both shown as dashed arrows in the figure above. Red color is used for **trigger** and blue for **useSync**). The third function is **addRule** to customize when/if reactivity happens.
+
+All of ADAX functionality can be introduced in a one short example. Visti the [short example ](/ShortExample) for a **fully detailed** explanation. _Alternatively, you can go and directly play with this example's code [here on stackblitz](https://stackblitz.com/~/github.com/MirjamElad/Adax-React-TW-Exp_0) (Comes with a shorter explanation of ADAX)_. 
