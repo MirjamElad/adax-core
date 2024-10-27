@@ -46,4 +46,6 @@ _Organize your state in any way you want. Per component, per group of components
 
 ADAX has a tiny API surface: **trigger** and **useSync** to wrap mutate & query functions respectively (Both shown as dashed arrows in the figure above. Red color is used for **trigger** and blue for **useSync**). The third function is **addRule** to customize when/if reactivity happens.
 
-All of ADAX functionality can be introduced in a one short example. Visti the [short example ](/ShortExample) for a **fully detailed** explanation. _Alternatively, you can go and directly play with this example's code [here on stackblitz](https://stackblitz.com/~/github.com/MirjamElad/Adax-React-TW-Exp_0) (Comes with a shorter explanation of ADAX)_. 
+Documentation for ADAX and the imeplented adapters is being worked on.
+However, most developers should be able to understand adax by just checking the provided simple example.
+You can play with this example's code [here on stackblitz](https://stackblitz.com/~/github.com/MirjamElad/Adax-React-TW-Exp_0) (This example comes with a shorter explanation of ADAX). 
