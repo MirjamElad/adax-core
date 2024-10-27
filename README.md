@@ -48,7 +48,7 @@ ADAX has a tiny API surface: **trigger** and **useSync** to wrap mutate & query 
 
 
 Documentation for ADAX and the imeplented adapters is being worked on.
-However, most developers should be able to understand adax by just checking the provided simple example (it uses adax-react).
-You can play with this example's code [here on stackblitz](https://stackblitz.com/~/github.com/MirjamElad/Adax-React-TW-Exp_0) (It comes with a shorter explanation of ADAX). 
+However, most developers should be able to understand adax by just checking the provided simple example.
+[Simple **adax-react** example](https://github.com/MirjamElad/Adax-React-TW-Exp_0) (It comes with a shorter explanation of ADAX). 
 
-<sub>There are a number of ways to control when/if reactivity happens (views re-rendered and side-effects fired). We encourage the use of Rules as done in the simple example above. Documentation and code examples about the other options to come later.</sub>
+<sub>There are a number of ways to control when/if reactivity happens (views re-rendered and side-effects fired). We encourage the use of Rules as done in the simple example above. Documentation and code examples about the other options to come soon.</sub>
