@@ -20,5 +20,6 @@ React | Vue | Angular | Svelte | Solid | Vanilla JS
 [![adax-react](assets/react.svg)](https://github.com/MirjamElad/adax-react)  | [![adax-vue](assets/vue.svg)](https://github.com/MirjamElad/adax-vue) |  [![adax-angular](assets/angular.svg)](https://github.com/MirjamElad/adax-angular)  | ![Nextra icon](assets/svelte.svg)  |  ![Nextra icon](assets/solid.svg)  |  [![adax-core](assets/vanilla.svg)](https://github.com/MirjamElad/adax-core)  
 
 Not only is ADAX designed to be used by any front end library/framework but it also facilitates using different libraries in the same app. ADAX allows all parts/libraries of your app to fully _access_ the same state and _react_ to its changes.
+[See an example with all of React, Vue and Vanilla javascript here](https://github.com/MirjamElad/ADAX-Vanilla-Vue-React) 
 
-<sub>(**NB**: _**adax-core**_ can be used with vanilla javascript or any library/framework. However, it is more convenient to use an adapter of your favorite library. We released _**adax-react**_ whereas _**adax-vue**_ and _**adax-angular**_ are being tested. More adapters coming soon)</sub>
+<sub>(**NB**: _**[adax-core](https://github.com/MirjamElad/adax-core)**_ can be used with vanilla javascript or any library/framework. However, it is more convenient to use an adapter of your favorite library. We released _**[adax-react](https://github.com/MirjamElad/adax-react)**_ whereas _**adax-vue**_ and _**adax-angular**_ are being tested. More adapters coming soon)</sub>
