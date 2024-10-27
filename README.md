@@ -17,10 +17,7 @@ ADAX does not force you to throw your old code. You can start using ADAX gradual
 
 React | Vue | Angular | Svelte | Solid | Vanilla JS
 :-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
-[![adax-react](assets/react.svg)](https://github.com/MirjamElad/adax-react)  |
-[![adax-vue](assets/vue.svg)](https://github.com/MirjamElad/adax-vue)  |
-[![adax-angular](assets/angular.svg)](https://github.com/MirjamElad/adax-angular)  |
-![Nextra icon](assets/svelte.svg)  |  ![Nextra icon](assets/solid.svg)  |  ![Nextra icon](assets/vanilla.svg)  
+[![adax-react](assets/react.svg)](https://github.com/MirjamElad/adax-react)  | [![adax-vue](assets/vue.svg)](https://github.com/MirjamElad/adax-vue) |  [![adax-angular](assets/angular.svg)](https://github.com/MirjamElad/adax-angular)  | ![Nextra icon](assets/svelte.svg)  |  ![Nextra icon](assets/solid.svg)  |  ![Nextra icon](assets/vanilla.svg)  
 
 Not only is ADAX designed to be used by any front end library/framework but it also facilitates using different libraries in the same app. ADAX allows all parts/libraries of your app to fully _access_ the same state and _react_ to its changes.
 
