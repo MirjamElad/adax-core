@@ -1,5 +1,5 @@
-# Adax
-### The drastically simplified state management for the front end.
+# ADAX
+### The power of simplicity.
 ADAX mini-library (less than 2K gzipped) is the first step in an effort to dramatically streamline apps' **developement** and **maintenance** by simplifying their logic flow.
 
 It is usually very easy to implement and reason about a single web component life cycle.
@@ -42,10 +42,13 @@ _Organize your state in any way you want. Per component, per group of components
 
 > As always, you can use regular and simple JavaScript/TypeScript to implement **Query** and **Mutate** functions. All such functions can be used in both visual and non-visual "components".
 
-* **Rules**: are ADAX's thin layer to allow the app to _listen_ to the state and _react_ to its changes. _I.e. Rules for which query functions must re-run due to which mutate functions and under what conditions_.
+* **Rules**(Optional): are ADAX's thin layer to allow the app to _listen_ to the state and _react_ to its changes. _I.e. Rules for which query functions must re-run due to which mutate functions and under what conditions_.
 
 ADAX has a tiny API surface: **trigger** and **useSync** to wrap mutate & query functions respectively (Both shown as dashed arrows in the figure above. Red color is used for **trigger** and blue for **useSync**). The third function is **addRule** to customize when/if reactivity happens.
 
+
 Documentation for ADAX and the imeplented adapters is being worked on.
-However, most developers should be able to understand adax by just checking the provided simple example (it uses adax.adapter).
+However, most developers should be able to understand adax by just checking the provided simple example (it uses adax-react).
 You can play with this example's code [here on stackblitz](https://stackblitz.com/~/github.com/MirjamElad/Adax-React-TW-Exp_0) (It comes with a shorter explanation of ADAX). 
+
+<sub>There are a number of ways to control when/if reactivity happens (views re-rendered and side-effects fired). We encourage the use of Rules as done in the simple example above. Documentation and code examples about the other options to come later.</sub>
