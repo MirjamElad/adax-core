@@ -21,4 +21,4 @@ React | Vue | Angular | Svelte | Solid | Vanilla JS
 
 Not only is ADAX designed to be used by any front end library/framework but it also facilitates using different libraries in the same app. ADAX allows all parts/libraries of your app to fully _access_ the same state and _react_ to its changes.
 
-<sub><sup>(**NB**: _**adax-core**_ can be used with vanilla javascript or any library/framework. However, it is more convenient to use an adapter of your favorite library. For now we have _**adax-react**_, _**adax-vue**_ and _**adax-angular**_. More coming soon)</sup></sub>
+<sub>(**NB**: _**adax-core**_ can be used with vanilla javascript or any library/framework. However, it is more convenient to use an adapter of your favorite library. We released _**adax-react**_ whereas _**adax-vue**_ and _**adax-angular**_ are being tested. More adapters coming soon)</sub>
