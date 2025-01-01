@@ -48,7 +48,7 @@ export const subscribe = <FnType extends (x: any) => any>(
   let _trigger = readTrigger;
   if (options.debounceMs || options.throttleMs) {
     if (options.debounceMs && options.throttleMs) {
-      throw new Error('Cannot have both debounce and throttle options for any given query!')
+      throw new Error('Cannot have both debounce and throttle options for any given query')
     }
     if (options.debounceMs) {
       _trigger = debounce(readTrigger, options.debounceMs);
