@@ -83,3 +83,18 @@ export const subscribe = <FnType extends (x: any) => any>(
   }
   return { result, onMounted, onBeforeUnmount };
 };
+
+export const useSync = (
+  render: (data: any) => void,
+  query: (queryArgs: any | undefined) => any,
+  queryArgs?: any
+) => {
+  const { result, onMounted, onBeforeUnmount } = subscribe(
+    (result) => render(result),
+    query,
+    queryArgs
+  );
+  onMounted();
+  render(result);
+  return onBeforeUnmount;
+};

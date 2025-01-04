@@ -22,7 +22,8 @@
     "build" : "tsup src/index.ts --format esm,cjs --dts",
     "clean": "rimraf node_modules && rimraf dist && rimraf coverage",
     "dev" : "tsup src/index.ts --format esm,cjs --watch --dts",
-    "pack:local": "npm pack"
+    "pack:local": "npm pack",
+    "publish": "npm publish"
   },
   "keywords": ["micro frontends", "state management"],
   "devDependencies": {
