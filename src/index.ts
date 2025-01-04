@@ -83,7 +83,7 @@ export const subscribe = <FnType extends (x: any) => any>(
   }
   return { result, onMounted, onBeforeUnmount };
 };
-
+//TODO: Rethink useSync to be used by adax adapters (such as adax-react) instead of subscribe
 export const useSync = (
   render: (data: any) => void,
   query: (queryArgs: any | undefined) => any,
