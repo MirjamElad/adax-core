@@ -66,12 +66,12 @@ describe("adax without rules, basics", () => {
     const readTrigger_2 = jest.fn();
     const readTrigger_3 = jest.fn();
     addRule({writeFn: incrementCounterByTeam, queryFn: getByTeam});
-    const { onMounted: onMounted_1, onBeforeUnmount: onBeforeUnmount_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
-    const { onMounted: onMounted_2, onBeforeUnmount: onBeforeUnmount_2 } = subscribe(readTrigger_2, getByTeam, {team: 'right'});
-    const { onMounted: onMounted_3, onBeforeUnmount: onBeforeUnmount_3 } = subscribe(readTrigger_3, getAll);
-    onMounted_1();
-    onMounted_2();
-    onMounted_3();
+    const { on: on_1, off: off_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
+    const { on: on_2, off: off_2 } = subscribe(readTrigger_2, getByTeam, {team: 'right'});
+    const { on: on_3, off: off_3 } = subscribe(readTrigger_3, getAll);
+    on_1();
+    on_2();
+    on_3();
     //removing the only rule and thus cal all registered query callbacks!
     removeRule({writeFn: incrementCounterByTeam, queryFn: getByTeam});
     trigger(incrementCounterByTeam, {team: 'right'});
@@ -79,9 +79,9 @@ describe("adax without rules, basics", () => {
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
     expect(readTrigger_2).toHaveBeenCalledTimes(1);
     expect(readTrigger_3).toHaveBeenCalledTimes(1);
-    onBeforeUnmount_1();
-    onBeforeUnmount_2();
-    onBeforeUnmount_3();
+    off_1();
+    off_2();
+    off_3();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
@@ -92,10 +92,10 @@ describe("adax without rules, basics", () => {
   it("trigger causes ALL mounted queries to fire with proper results", async () => {
     const readTrigger_1 = jest.fn();
     const readTrigger_2 = jest.fn();
-    const { onMounted: onMounted_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
-    const { onMounted: onMounted_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
-    onMounted_1();
-    onMounted_2();
+    const { on: on_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
+    const { on: on_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
+    on_1();
+    on_2();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
@@ -107,13 +107,13 @@ describe("adax without rules, basics", () => {
   it("mounting a query more than once has no bearing on how many times it fires", async () => {
     const readTrigger_1 = jest.fn();
     const readTrigger_2 = jest.fn();
-    const { onMounted: onMounted_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
-    const { onMounted: onMounted_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
-    onMounted_1();
-    onMounted_1();
-    onMounted_1();
-    onMounted_2();
-    onMounted_2();
+    const { on: on_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
+    const { on: on_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
+    on_1();
+    on_1();
+    on_1();
+    on_2();
+    on_2();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
@@ -125,9 +125,9 @@ describe("adax without rules, basics", () => {
   it("trigger causes ONLY mounted queries to fire", async () => {
     const readTrigger_1 = jest.fn();
     const readTrigger_2 = jest.fn();
-    const { onMounted } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
-    const { onMounted: onMounted_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'right'});
-    onMounted();
+    const { on } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
+    const { on: on_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'right'});
+    on();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
@@ -139,16 +139,16 @@ describe("adax without rules, basics", () => {
     const readTrigger_1 = jest.fn();
     const readTrigger_2 = jest.fn();
     const readTrigger_3 = jest.fn();
-    const { onMounted: onMounted_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
+    const { on: on_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
     // readTrigger with arguments
-    const { onMounted: onMounted_2, onBeforeUnmount: onBeforeUnmount_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
+    const { on: on_2, off: off_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
     // readTrigger without arguments
-    const { onMounted: onMounted_3, onBeforeUnmount: onBeforeUnmount_3 } = subscribe(readTrigger_3, getAll);
-    onMounted_1();
-    onMounted_2();
-    onMounted_3();
-    onBeforeUnmount_2();
-    onBeforeUnmount_3();
+    const { on: on_3, off: off_3 } = subscribe(readTrigger_3, getAll);
+    on_1();
+    on_2();
+    on_3();
+    off_2();
+    off_3();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
@@ -160,14 +160,14 @@ describe("adax without rules, basics", () => {
   it("trigger stops causing a query to be fired after that query has been unmounted", async () => {
     const readTrigger_1 = jest.fn();
     const readTrigger_2 = jest.fn();
-    const { onMounted: onMounted_1, onBeforeUnmount } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
-    const { onMounted: onMounted_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
-    onMounted_1();
-    onMounted_2();
+    const { on: on_1, off } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
+    const { on: on_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
+    on_1();
+    on_2();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     //Unmounting first query
-    onBeforeUnmount();
+    off();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
@@ -178,8 +178,8 @@ describe("adax without rules, basics", () => {
 
   it("only trigger causes queries to fire", async () => {
     const readTrigger = jest.fn();
-    const { onMounted } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
-    onMounted();
+    const { on } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
+    on();
     //No trigger!!
     incrementCounterByTeam({team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
@@ -199,8 +199,8 @@ describe("adax without rules, basics", () => {
 
   it("Non trigger calls only cause data to change (not prevData nor version)", async () => {
     const readTrigger = jest.fn();
-    const { onMounted } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
-    onMounted();
+    const { on } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
+    on();
     //No trigger!!
     incrementCounterByTeam({team: 'right'});
     //No trigger!!
@@ -214,8 +214,8 @@ describe("adax without rules, basics", () => {
 
   it("trigger unecessary read (second time with no data changes) ensures data == prevData for 'by value' returns", async () => {
     const readTrigger = jest.fn();
-    const { onMounted } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
-    onMounted();
+    const { on } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
+    on();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     //trigger NOT causing team right to have a different data!
@@ -227,14 +227,14 @@ describe("adax without rules, basics", () => {
   
   it("Subscribing to query n-times, then launchign proper trigger causes call back to fire n-times", async () => {
     const readTrigger = jest.fn();
-    const { onMounted: onMounted_1 } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
-    const { onMounted: onMounted_2 } = subscribe(readTrigger, getCounterByTeam, {team: 'left'});
-    const { onMounted: onMounted_3 } = subscribe(readTrigger, getCounterByTeam, {team: 'left'});
-    const { onMounted: onMounted_4 } = subscribe(readTrigger, getByTeam, {team: 'left'});
-    onMounted_1();
-    onMounted_2();
-    onMounted_3();
-    onMounted_4();
+    const { on: on_1 } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
+    const { on: on_2 } = subscribe(readTrigger, getCounterByTeam, {team: 'left'});
+    const { on: on_3 } = subscribe(readTrigger, getCounterByTeam, {team: 'left'});
+    const { on: on_4 } = subscribe(readTrigger, getByTeam, {team: 'left'});
+    on_1();
+    on_2();
+    on_3();
+    on_4();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger).toHaveBeenCalledTimes(4);
@@ -263,17 +263,17 @@ describe("adax with rules, basics", () => {
     const dummyWriteFn = jest.fn();
     addRule({writeFn: incrementCounterByTeam, queryFn: getByTeam});
     addRule({writeFn: dummyWriteFn, queryFn: getCounterByTeam});
-    const { onMounted: onMounted_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
-    const { onMounted: onMounted_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
-    const { onMounted: onMounted_3 } = subscribe(readTrigger_3, getByTeam, {team: 'right'});
-    const { onMounted: onMounted_4 } = subscribe(readTrigger_4, getByTeam, {team: 'left'});
+    const { on: on_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
+    const { on: on_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
+    const { on: on_3 } = subscribe(readTrigger_3, getByTeam, {team: 'right'});
+    const { on: on_4 } = subscribe(readTrigger_4, getByTeam, {team: 'left'});
     // The queryFn: getAll below is not in any rules. Thus readTrigger_5 must be called upon any trigger!
-    const { onMounted: onMounted_5 } = subscribe(readTrigger_5, getAll);
-    onMounted_1();
-    onMounted_2();
-    onMounted_3();
-    onMounted_4();
-    onMounted_5();
+    const { on: on_5 } = subscribe(readTrigger_5, getAll);
+    on_1();
+    on_2();
+    on_3();
+    on_4();
+    on_5();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).not.toHaveBeenCalled();
@@ -292,15 +292,15 @@ describe("adax with rules, basics", () => {
     const readTrigger_4 = jest.fn();
     addRule({writeFn: incrementCounterByTeam, queryFn: getByTeam});
     ////////// getCounterByTeam is not in any rule! ////////////
-    const { onMounted: onMounted_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
-    const { onMounted: onMounted_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
+    const { on: on_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
+    const { on: on_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
     ////////////////////////////////////////////////////////////
-    const { onMounted: onMounted_3 } = subscribe(readTrigger_3, getByTeam, {team: 'right'});
-    const { onMounted: onMounted_4 } = subscribe(readTrigger_4, getByTeam, {team: 'left'});
-    onMounted_1();
-    onMounted_2();
-    onMounted_3();
-    onMounted_4();
+    const { on: on_3 } = subscribe(readTrigger_3, getByTeam, {team: 'right'});
+    const { on: on_4 } = subscribe(readTrigger_4, getByTeam, {team: 'left'});
+    on_1();
+    on_2();
+    on_3();
+    on_4();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     ////////// readTrigger_1 & readTrigger_2 are called because getCounterByTeam is not in any rule! ////////////
@@ -324,15 +324,15 @@ describe("adax with rules, basics", () => {
     addRule({writeFn: decrementCounterByTeam, queryFn: getByTeam});
     /// incrementCounterByTeam is NOT in ANY rule!
     ////////// getCounterByTeam is not in any rule! ////////////
-    const { onMounted: onMounted_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
-    const { onMounted: onMounted_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
+    const { on: on_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
+    const { on: on_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
     ////////////////////////////////////////////////////////////
-    const { onMounted: onMounted_3 } = subscribe(readTrigger_3, getByTeam, {team: 'right'});
-    const { onMounted: onMounted_4 } = subscribe(readTrigger_4, getByTeam, {team: 'left'});
-    onMounted_1();
-    onMounted_2();
-    onMounted_3();
-    onMounted_4();
+    const { on: on_3 } = subscribe(readTrigger_3, getByTeam, {team: 'right'});
+    const { on: on_4 } = subscribe(readTrigger_4, getByTeam, {team: 'left'});
+    on_1();
+    on_2();
+    on_3();
+    on_4();
     /// incrementCounterByTeam is NOT in ANY rule
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
@@ -353,12 +353,12 @@ describe("adax with rules, basics", () => {
     const readTrigger_2 = jest.fn();
     const readTrigger_3 = jest.fn();
     addRule({writeFn: incrementCounterByTeam, queryFn: getByTeam});
-    const { onMounted: onMounted_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
-    const { onMounted: onMounted_2 } = subscribe(readTrigger_2, getByTeam, {team: 'right'});
-    const { onMounted: onMounted_3 } = subscribe(readTrigger_3, getAll);
-    onMounted_1();
-    onMounted_2();
-    onMounted_3();
+    const { on: on_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
+    const { on: on_2 } = subscribe(readTrigger_2, getByTeam, {team: 'right'});
+    const { on: on_3 } = subscribe(readTrigger_3, getAll);
+    on_1();
+    on_2();
+    on_3();
     //runAllQueries on the default kernelStore to bypass all rules and thus cal all registered query callbacks!
     kernelStore.runAllQueries = true;
     trigger(incrementCounterByTeam, {team: 'right'});
@@ -375,14 +375,14 @@ describe("adax with rules, basics", () => {
     const readTrigger_4 = jest.fn();
     addRule({writeFn: incrementCounterByTeam, queryFn: getCounterByTeam});
     addRule({writeFn: incrementCounterByTeam, queryFn: getByTeam});
-    const { onMounted: onMounted_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
-    const { onMounted: onMounted_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
-    const { onMounted: onMounted_3 } = subscribe(readTrigger_3, getByTeam, {team: 'right'});
-    const { onMounted: onMounted_4 } = subscribe(readTrigger_4, getByTeam, {team: 'left'});
-    onMounted_1();
-    onMounted_2();
-    onMounted_3();
-    onMounted_4();
+    const { on: on_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
+    const { on: on_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
+    const { on: on_3 } = subscribe(readTrigger_3, getByTeam, {team: 'right'});
+    const { on: on_4 } = subscribe(readTrigger_4, getByTeam, {team: 'left'});
+    on_1();
+    on_2();
+    on_3();
+    on_4();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
@@ -401,10 +401,10 @@ describe("adax with rules, basics", () => {
     addRule({writeFn: incrementCounterByTeam, queryFn: getCounterByTeam});
     addRule({writeFn: decrementCounterByTeam, queryFn: getCounterByTeam});
     addRule({writeFn: incrementCounterByTeam, queryFn: getByTeam});
-    const { onMounted: onMounted_1 } = subscribe(getCounterByTeamRight, getCounterByTeam, {team: 'right'});
-    const { onMounted: onMounted_2 } = subscribe(getCounterByTeamLeft, getCounterByTeam, {team: 'left'});
-    onMounted_1();
-    onMounted_2();
+    const { on: on_1 } = subscribe(getCounterByTeamRight, getCounterByTeam, {team: 'right'});
+    const { on: on_2 } = subscribe(getCounterByTeamLeft, getCounterByTeam, {team: 'left'});
+    on_1();
+    on_2();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(getCounterByTeamRight).toHaveBeenCalledTimes(1);
@@ -429,8 +429,8 @@ describe("adax with rules, basics", () => {
   it("only trigger causes queries to fire", async () => {
     const readTrigger = jest.fn();
     addRule({writeFn: incrementCounterByTeam, queryFn: getCounterByTeam});
-    const { onMounted } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
-    onMounted();
+    const { on } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
+    on();
     //No trigger!!
     incrementCounterByTeam({team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
@@ -451,8 +451,8 @@ describe("adax with rules, basics", () => {
   it("Non trigger calls only cause data to change (not prevData nor version)", async () => {
     const readTrigger = jest.fn();
     addRule({writeFn: incrementCounterByTeam, queryFn: getCounterByTeam});
-    const { onMounted } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});    
-    onMounted();
+    const { on } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});    
+    on();
     //No trigger!!
     incrementCounterByTeam({team: 'right'});
     //No trigger!!
@@ -467,8 +467,8 @@ describe("adax with rules, basics", () => {
   it("trigger unecessary read (second time with no data changes) ensures data == prevData for 'by value' returns", async () => {
     const readTrigger = jest.fn();    
     addRule({writeFn: incrementCounterByTeam, queryFn: getCounterByTeam});
-    const { onMounted } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
-    onMounted();
+    const { on } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
+    on();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     //trigger NOT causing team right to have a different data!
@@ -484,10 +484,10 @@ describe("adax with rules, basics", () => {
     const readTrigger_1 = jest.fn();
     const readTrigger_2 = jest.fn();
     addRule({writeFn: incrementCounterByTeam, queryFn: getCounterByTeam, skip: irrelevantTeams});
-    const { onMounted: onMounted_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
-    const { onMounted: onMounted_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
-    onMounted_1();
-    onMounted_2();
+    const { on: on_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
+    const { on: on_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'});
+    on_1();
+    on_2();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).toHaveBeenCalledTimes(1);
@@ -513,8 +513,8 @@ describe("adax by default, queries return expected data, prevData & version", ()
       result.writeFn = writeFn;
       result.writeParamsObj = writeParamsObj;
     };
-    const { onMounted } = subscribe(readTrigger, getByTeam, {team: 'right'});
-    onMounted();
+    const { on } = subscribe(readTrigger, getByTeam, {team: 'right'});
+    on();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(result.data).toEqual({ color: 'red',   counter: 1});
@@ -539,8 +539,8 @@ describe("adax by default, queries return expected data, prevData & version", ()
       result.writeFn = writeFn;
       result.writeParamsObj = writeParamsObj;
     };
-    const { onMounted } = subscribe(readTrigger, getByTeam, {team: 'right'});
-    onMounted();
+    const { on } = subscribe(readTrigger, getByTeam, {team: 'right'});
+    on();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(result.data).toEqual({ color: 'red',   counter: 1});
@@ -566,8 +566,8 @@ describe("adax by default, queries return expected data, prevData & version", ()
       result.writeFn = writeFn;
       result.writeParamsObj = writeParamsObj;
     };
-    const { onMounted } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
-    onMounted();
+    const { on } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
+    on();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(result.version).toEqual(1);
@@ -594,8 +594,8 @@ describe("adax by default, queries return expected data, prevData & version", ()
         result_2.version = version;
       }
     };
-    const { onMounted } = subscribe(readTrigger, aggregateCounters);
-    onMounted();
+    const { on } = subscribe(readTrigger, aggregateCounters);
+    on();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(result_1.version).toEqual(1);
@@ -625,8 +625,8 @@ describe("adax by default, queries return expected data, prevData & version", ()
       result.prevData = prevData;
       result.version = version;
     };
-    const { onMounted } = subscribe(readTrigger, getByTeam, {team: 'right'});
-    onMounted();
+    const { on } = subscribe(readTrigger, getByTeam, {team: 'right'});
+    on();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     trigger(incrementCounterByTeam, {team: 'left'});
@@ -644,8 +644,8 @@ describe("adax by default, queries return expected data, prevData & version", ()
       result.prevData = prevData;
       result.version = version;
     };
-    const { onMounted } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
-    onMounted();
+    const { on } = subscribe(readTrigger, getCounterByTeam, {team: 'right'});
+    on();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     //trigger NOT causing team right to have a different data!
@@ -673,8 +673,8 @@ describe("adax by default, queries return expected data, prevData & version", ()
         result_2.version = version;
       }
     };
-    const { onMounted } = subscribe(readTrigger, aggregateCounters);
-    onMounted();
+    const { on } = subscribe(readTrigger, aggregateCounters);
+    on();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(result_1.version).toEqual(1);
@@ -705,18 +705,18 @@ describe("adax with different kernel stores", () => {
     const readTrigger_1 = jest.fn();
     const readTrigger_2 = jest.fn();
     const nonDefaultKernelStore = new KernelStore();
-    const { onMounted: onMounted_0 } = 
+    const { on: on_0 } = 
       subscribe(readTrigger_1, getCounterByTeam, {team: 'right'});
-    const { onMounted: onMounted_1 } = 
+    const { on: on_1 } = 
       subscribe(readTrigger_1, getCounterByTeam, {team: 'left'});
-    const { onMounted: onMounted_2 } = 
+    const { on: on_2 } = 
       subscribe(readTrigger_2, getCounterByTeam, {team: 'right'}, {}, {kernel: nonDefaultKernelStore});
-    const { onMounted: onMounted_3 } = 
+    const { on: on_3 } = 
       subscribe(readTrigger_2, getCounterByTeam, {team: 'left'}, {}, {kernel: nonDefaultKernelStore});
-    onMounted_0();
-    onMounted_1();
-    onMounted_2();
-    onMounted_3();
+    on_0();
+    on_1();
+    on_2();
+    on_3();
     trigger(incrementCounterByTeam, {team: 'right'}, {kernel: nonDefaultKernelStore});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_1).not.toHaveBeenCalled();
@@ -738,14 +738,14 @@ describe("adax with options", () => {
   it("setting a skipInitalQuerying option works", async () => {
     const readTrigger_without_skipInitalQuerying = jest.fn();
     const readTrigger_skipInitalQuerying = jest.fn();    
-    const { onMounted: onMounted_0, result: { data: data_0 } } = 
+    const { on: on_0, result: { data: data_0 } } = 
       subscribe(readTrigger_without_skipInitalQuerying, getCounterByTeam, {team: 'right'});
     expect(data_0).toBeDefined();
-    const { onMounted: onMounted_1, result: { data: data_1 } } = 
+    const { on: on_1, result: { data: data_1 } } = 
       subscribe(readTrigger_skipInitalQuerying, getCounterByTeam, {team: 'right'}, { skipInitalQuerying: true });
     expect(data_1).not.toBeDefined();
-    onMounted_0();
-    onMounted_1();
+    on_0();
+    on_1();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(readTrigger_without_skipInitalQuerying).toHaveBeenCalledWith({data: 1, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
@@ -762,12 +762,12 @@ describe("adax with options", () => {
     const readTrigger_2 = () => {
       callNum_2++;
     };
-    const { onMounted: onMounted_0 } = 
+    const { on: on_0 } = 
       subscribe(readTrigger_1, getCounterByTeam, {team: 'right'}, { debounceMs: 5 });
-    const { onMounted: onMounted_1 } = 
+    const { on: on_1 } = 
       subscribe(readTrigger_2, getCounterByTeam, {team: 'left'}, { debounceMs: 50 });
-    onMounted_0();
-    onMounted_1();
+    on_0();
+    on_1();
     for(let i=0; i <10; i++) {
       trigger(incrementCounterByTeam, {team: 'right'});
       await new Promise(resolve => setTimeout(resolve, 1));
@@ -787,8 +787,8 @@ describe("adax with options", () => {
     const readTrigger = () => {
       callNum++;
     };
-    const { onMounted } = subscribe(readTrigger, getCounterByTeam, {team: 'right'}, { debounceMs: 20 });
-    onMounted();
+    const { on } = subscribe(readTrigger, getCounterByTeam, {team: 'right'}, { debounceMs: 20 });
+    on();
     trigger(incrementCounterByTeam, {team: 'right'});
     trigger(decrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 50));
@@ -803,8 +803,8 @@ describe("adax with options", () => {
     };
     addRule({writeFn: incrementCounterByTeam, queryFn: getCounterByTeam});
     addRule({writeFn: decrementCounterByTeam, queryFn: getCounterByTeam});
-    const { onMounted } = subscribe(readTrigger, getCounterByTeam, {team: 'right'}, { debounceMs: 20 });
-    onMounted();
+    const { on } = subscribe(readTrigger, getCounterByTeam, {team: 'right'}, { debounceMs: 20 });
+    on();
     trigger(incrementCounterByTeam, {team: 'right'});
     trigger(decrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 50));
@@ -820,12 +820,12 @@ describe("adax with options", () => {
     const readTrigger_2 = () => {
       callNum_2++;
     };
-    const { onMounted: onMounted_1 } = 
+    const { on: on_1 } = 
       subscribe(readTrigger_1, getCounterByTeam, {team: 'right'}, { throttleMs: 10 });
-    const { onMounted: onMounted_2 } = 
+    const { on: on_2 } = 
       subscribe(readTrigger_2, getCounterByTeam, {team: 'left'}, { throttleMs: 20 });
-    onMounted_1();
-    onMounted_2();
+    on_1();
+    on_2();
     const start = performance.now();
     for(let i=0; i< 50; i++) {
       trigger(incrementCounterByTeam, {team: 'right'});
@@ -842,6 +842,6 @@ describe("adax with options", () => {
   it("setting both throttle & debounce options throws an exception", () => {
     expect(() => {
       subscribe(() => {}, getCounterByTeam, {team: 'right'}, { debounceMs: 10, throttleMs: 10 })
-    }).toThrow("Cannot have both debounce and throttle options for any given query!");
+    }).toThrow("Cannot have both debounce and throttle options for any given query");
   });
 });

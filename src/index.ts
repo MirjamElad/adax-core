@@ -56,7 +56,7 @@ export const subscribe = <FnType extends (x: any) => any>(
       _trigger = throttle(readTrigger, options.throttleMs);
     }
   }
-  const onMounted = () => {
+  const on = () => {
     addQuery({ queryFn: readFn, queryInstance: {
       instanceKey: cmpId,
       readTrigger: _trigger,
@@ -65,7 +65,7 @@ export const subscribe = <FnType extends (x: any) => any>(
       result: result
     }}, stores);
   };  
-  const onBeforeUnmount = () => {
+  const off = () => {
     removeQuery({ queryFn: readFn, queryInstance: {
       // eslint-disable-next-line 
       instanceKey: cmpId,
@@ -81,7 +81,7 @@ export const subscribe = <FnType extends (x: any) => any>(
       }
     }}, stores);
   }
-  return { result, onMounted, onBeforeUnmount };
+  return { result, on, off };
 };
 //TODO: Rethink useSync to be used by adax adapters (such as adax-react) instead of subscribe
 export const useSync = (
@@ -89,12 +89,12 @@ export const useSync = (
   query: (queryArgs: any | undefined) => any,
   queryArgs?: any
 ) => {
-  const { result, onMounted, onBeforeUnmount } = subscribe(
+  const { result, on, off } = subscribe(
     (result) => render(result),
     query,
     queryArgs
   );
-  onMounted();
+  on();
   render(result);
-  return onBeforeUnmount;
+  return off;
 };
