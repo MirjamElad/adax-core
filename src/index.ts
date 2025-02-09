@@ -86,7 +86,7 @@ export const subscribe = <FnType extends (x: any) => any>(
 //TODO: Rethink useSync to be used by adax adapters (such as adax-react) instead of subscribe
 export const useSync = <FnType extends (x: any) => any>(
   render: (data: any) => void,
-  query: (queryArgs: QueryOptions | undefined) => any,
+  query: FnType,
   paramsObj?: Parameters<FnType>[0],
   options: QueryOptions = {},
   stores: { kernel: KernelStore } = { kernel: kernelStore }
