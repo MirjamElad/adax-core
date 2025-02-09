@@ -1,7 +1,7 @@
 import { KernelStore, kernelStore } from './store/index';
 import { getQueryPlan } from './store/read';
 import { addQuery, removeQuery, afterWrite } from './store/write';
-import { debounce, throttle, isInternal } from './store/utils';
+import { debounce, throttle, isInternal, deepEqual } from './store/utils';
 import type { QueryOptions, Result } from "./store/type";
 
 export type { QueryOptions, Result } from "./store/type";
@@ -87,8 +87,10 @@ export const subscribe = <FnType extends (x: any) => any>(
 export const useSync = (
   render: (data: any) => void,
   query: (queryArgs: any | undefined) => any,
-  queryArgs?: any
+  queryArgs?: QueryOptions
 ) => {
+  queryArgs = queryArgs || {}
+  queryArgs.hasResultChanged = queryArgs.hasResultChanged || ((data:any, prevData:any) => ! deepEqual(data, prevData));
   const { result, on, off } = subscribe(
     (result) => render(result),
     query,

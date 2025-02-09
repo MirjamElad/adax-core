@@ -19,12 +19,15 @@ const setResult = (queryInstance: QueryInstance, queryFn: QueryFn, writeFn: (x: 
   queryInstance.result!.writeParamsObj = writeParamsObj;
 }
 
-const viewTrigger = (queryInstance: QueryInstance) => {
-  if (queryInstance.options?.hasResultChanged ? 
-      queryInstance.options?.hasResultChanged(queryInstance.result!.prevData, queryInstance.result!.data) :  
-      true) {
-    queryInstance.readTrigger!(queryInstance.result!);
+const viewTrigger = (queryInstance: QueryInstance, runAllQueries: boolean) => {
+  if (
+      !runAllQueries && 
+      queryInstance.options?.hasResultChanged && 
+      !queryInstance.options?.hasResultChanged(queryInstance.result!.prevData, queryInstance.result!.data)
+    )   {
+    return;
   }
+  queryInstance.readTrigger!(queryInstance.result!);
 }
 
 const addQueryToPlan = (
@@ -56,7 +59,7 @@ const addQueryToPlan = (
         setResult(queryInstance, queryFn, writeFn, writeParamsObj);
       });
       viewsTriggeringCallBacks.push(() => {
-        queryInstance?.readTrigger && viewTrigger(queryInstance);
+        queryInstance?.readTrigger && viewTrigger(queryInstance, !!stores.kernel.runAllQueries);
       });
     }
     queryInstancesList.push({
