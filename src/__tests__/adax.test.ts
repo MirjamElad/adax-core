@@ -72,7 +72,7 @@ describe("adax without rules, basics", () => {
     on_1();
     on_2();
     on_3();
-    //removing the only rule and thus cal all registered query callbacks!
+    //removing the only rule and thus call all registered query callbacks!
     removeRule({writeFn: incrementCounterByTeam, queryFn: getByTeam});
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
