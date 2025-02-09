@@ -19,9 +19,9 @@ const setResult = (queryInstance: QueryInstance, queryFn: QueryFn, writeFn: (x: 
   queryInstance.result!.writeParamsObj = writeParamsObj;
 }
 
-const viewTrigger = (queryInstance: QueryInstance, runAllQueries: boolean) => {
+const viewTrigger = (queryInstance: QueryInstance, forceRun: boolean) => {
   if (
-      !runAllQueries && 
+      !forceRun && 
       queryInstance.options?.hasResultChanged && 
       !queryInstance.options?.hasResultChanged(queryInstance.result!.prevData, queryInstance.result!.data)
     )   {
@@ -38,6 +38,7 @@ const addQueryToPlan = (
   writeParamsObj: unknown,
   queryFn: QueryFn,
   writeFn: (x: any) => void,
+  fromRules: boolean | undefined = undefined,
   skip: SkipCondition | undefined = undefined
 ) => {
   stores.kernel.queries?.get(queryFn)?.forEach((queryInstance) => {
@@ -59,7 +60,7 @@ const addQueryToPlan = (
         setResult(queryInstance, queryFn, writeFn, writeParamsObj);
       });
       viewsTriggeringCallBacks.push(() => {
-        queryInstance?.readTrigger && viewTrigger(queryInstance, !!stores.kernel.runAllQueries);
+        queryInstance?.readTrigger && viewTrigger(queryInstance, !!fromRules || !!(stores.kernel.runAllQueries));
       });
     }
     queryInstancesList.push({
@@ -80,7 +81,7 @@ export const  getQueryPlan = <FnType extends (x: any) => void>({writeFn, writePa
       const queryFnMap = stores.kernel.rules.get(writeFn)!.readersMap;
       if (!!queryFnMap?.size) {
         queryFnMap?.forEach ((skip, queryFn) => {
-          addQueryToPlan(stores, queryPlan, dataComputationCallBacks, viewsTriggeringCallBacks, writeParamsObj, queryFn, writeFn, skip);
+          addQueryToPlan(stores, queryPlan, dataComputationCallBacks, viewsTriggeringCallBacks, writeParamsObj, queryFn, writeFn, true, skip);
         });
       }
       if (stores.kernel.queries.size > stores.kernel.reverseRules.size) {

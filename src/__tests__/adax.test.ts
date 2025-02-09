@@ -685,13 +685,15 @@ describe("adax by default, queries return expected data, prevData & version", ()
     //decrement to undo previous increment
     decrementCounterByTeam({team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
-    //trigger NOT causing team right to have a different "compoted" data!
+    //trigger NOT causing team right to have a different "computed" data!
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(result_2.version).toEqual(2);
     expect(result_2.data).toEqual({ total: 1 });
     expect(result_2.prevData).toEqual({ total: 1 });
     expect(result_2.data).toEqual(result_2.prevData);
+    // console.log(`result_2.data:`, JSON.stringify(result_2.data, null, 3))
+    // console.log(`result_2.prevData:`, JSON.stringify(result_2.prevData, null, 3))
     //Note how data !== prevData even if equivalent (not by ref then not same object!)
     expect(result_2.data !== result_2.prevData).toBeTruthy();
   });
