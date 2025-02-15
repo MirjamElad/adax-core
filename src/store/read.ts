@@ -25,6 +25,7 @@ const viewTrigger = (queryInstance: QueryInstance, forceRun: boolean) => {
       queryInstance.options?.hasResultChanged && 
       !queryInstance.options?.hasResultChanged(queryInstance.result!.prevData, queryInstance.result!.data)
     )   {
+    console.info('{prevData, data}:', {prevData: queryInstance.result!.prevData, data: queryInstance.result!.data});
     return;
   }
   queryInstance.readTrigger!(queryInstance.result!);

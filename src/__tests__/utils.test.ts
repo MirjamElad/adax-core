@@ -32,8 +32,7 @@ describe('deepEqual', () => {
     obj3.self = obj3;
     const obj4: any = {};
     obj4.self = obj3; // Different reference
-    //TODO: Re-consider: Should we really consider obj3, obj4 to be equal even though they are structurally NOT  equivalent? 
-    expect(deepEqual(obj3, obj4)).toBe(true); // Reference mismatch
+    expect(deepEqual(obj3, obj4)).toBe(false); // Reference mismatch
   });
 
   it('should handle Date objects', () => {
@@ -156,5 +155,366 @@ describe('deepEqual', () => {
     expect(deepEqual(obj1, obj2)).toBe(true);
     expect(deepEqual(obj1, obj3)).toBe(false);
     expect(deepEqual(obj4, obj3)).toBe(false);
+  });
+});
+
+describe('deepEqual', () => {
+  describe('primitive types', () => {
+    it('should compare numbers correctly', () => {
+      expect(deepEqual(1, 1)).toBe(true);
+      expect(deepEqual(1, 2)).toBe(false);
+      expect(deepEqual(NaN, NaN)).toBe(false);
+      expect(deepEqual(0, -0)).toBe(true);
+      expect(deepEqual(Infinity, Infinity)).toBe(true);
+      expect(deepEqual(-Infinity, -Infinity)).toBe(true);
+      expect(deepEqual(Infinity, -Infinity)).toBe(false);
+    });
+
+    it('should compare strings correctly', () => {
+      expect(deepEqual('hello', 'hello')).toBe(true);
+      expect(deepEqual('hello', 'world')).toBe(false);
+      expect(deepEqual('', '')).toBe(true);
+    });
+
+    it('should compare booleans correctly', () => {
+      expect(deepEqual(true, true)).toBe(true);
+      expect(deepEqual(false, false)).toBe(true);
+      expect(deepEqual(true, false)).toBe(false);
+    });
+
+    it('should compare null and undefined correctly', () => {
+      expect(deepEqual(null, null)).toBe(true);
+      expect(deepEqual(undefined, undefined)).toBe(true);
+      expect(deepEqual(null, undefined)).toBe(false);
+    });
+  });
+
+  describe('objects', () => {
+    it('should compare empty objects correctly', () => {
+      expect(deepEqual({}, {})).toBe(true);
+    });
+
+    it('should compare flat objects correctly', () => {
+      const obj1 = { a: 1, b: 2, c: 'three' };
+      const obj2 = { a: 1, b: 2, c: 'three' };
+      const obj3 = { a: 1, b: 2, c: 'four' };
+      
+      expect(deepEqual(obj1, obj2)).toBe(true);
+      expect(deepEqual(obj1, obj3)).toBe(false);
+    });
+
+    it('should compare nested objects correctly', () => {
+      const obj1 = { a: { b: { c: 1 } } };
+      const obj2 = { a: { b: { c: 1 } } };
+      const obj3 = { a: { b: { c: 2 } } };
+      
+      expect(deepEqual(obj1, obj2)).toBe(true);
+      expect(deepEqual(obj1, obj3)).toBe(false);
+    });
+
+    it('should detect changes in nested properties', () => {
+        const obj1 = { a: { b: { c: 1 } } };
+        // Create a proper deep copy
+        const obj2 = JSON.parse(JSON.stringify(obj1));
+        expect(deepEqual(obj1, obj2)).toBe(true);
+        
+        // Modify nested property
+        obj2.a.b.c = 2;
+        expect(deepEqual(obj1, obj2)).toBe(false);
+    });
+
+    // Add a more comprehensive test for nested changes
+    it('should handle multiple nested property changes', () => {
+        const obj1 = {
+            a: { b: { c: 1, d: 2 }, e: 3 },
+            f: { g: 4 }
+        };
+        const obj2 = JSON.parse(JSON.stringify(obj1));
+        expect(deepEqual(obj1, obj2)).toBe(true);
+        
+        // Modify various nested properties
+        obj2.a.b.c = 5;
+        expect(deepEqual(obj1, obj2)).toBe(false);
+        
+        obj2.a.b.c = 1; // Reset to original
+        obj2.a.e = 6;
+        expect(deepEqual(obj1, obj2)).toBe(false);
+        
+        obj2.a.e = 3; // Reset to original
+        obj2.f.g = 7;
+        expect(deepEqual(obj1, obj2)).toBe(false);
+    });
+  
+    it('should detect changes in nested array elements', () => {
+        const obj1 = { a: { b: [1, { c: 2 }] } };
+        const obj2 = JSON.parse(JSON.stringify(obj1));
+        expect(deepEqual(obj1, obj2)).toBe(true);
+        
+        // Modify nested array element
+        obj2.a.b[1].c = 3;
+        expect(deepEqual(obj1, obj2)).toBe(false);
+    });
+
+    it('should handle objects with symbol properties', () => {
+      const symbol1 = Symbol('test');
+      const obj1 = { [symbol1]: 1 };
+      const obj2 = { [symbol1]: 1 };
+      const obj3 = { [symbol1]: 2 };
+      
+      expect(deepEqual(obj1, obj2)).toBe(true);
+      expect(deepEqual(obj1, obj3)).toBe(false);
+    });
+  });
+
+  describe('arrays', () => {
+    it('should compare arrays correctly', () => {
+      expect(deepEqual([], [])).toBe(true);
+      expect(deepEqual([1, 2, 3], [1, 2, 3])).toBe(true);
+      expect(deepEqual([1, 2, 3], [1, 2, 4])).toBe(false);
+      expect(deepEqual([1, 2, 3], [1, 2])).toBe(false);
+    });
+
+    it('should compare nested arrays correctly', () => {
+      expect(deepEqual([[1, 2], [3, 4]], [[1, 2], [3, 4]])).toBe(true);
+      expect(deepEqual([[1, 2], [3, 4]], [[1, 2], [3, 5]])).toBe(false);
+    });
+
+    it('should compare arrays with objects correctly', () => {
+      expect(deepEqual([{ a: 1 }], [{ a: 1 }])).toBe(true);
+      expect(deepEqual([{ a: 1 }], [{ a: 2 }])).toBe(false);
+    });
+  });
+
+  describe('dates', () => {
+    it('should compare dates correctly', () => {
+      const date1 = new Date('2024-01-01');
+      const date2 = new Date('2024-01-01');
+      const date3 = new Date('2024-01-02');
+      
+      expect(deepEqual(date1, date2)).toBe(true);
+      expect(deepEqual(date1, date3)).toBe(false);
+    });
+  });
+
+  describe('regular expressions', () => {
+    it('should compare regular expressions correctly', () => {
+      expect(deepEqual(/abc/g, /abc/g)).toBe(true);
+      expect(deepEqual(/abc/g, /abc/i)).toBe(false);
+      expect(deepEqual(/abc/, /def/)).toBe(false);
+    });
+  });
+
+  describe('Maps and Sets', () => {
+    it('should compare Maps correctly', () => {
+      const map1 = new Map([['a', 1], ['b', 2]]);
+      const map2 = new Map([['a', 1], ['b', 2]]);
+      const map3 = new Map([['a', 1], ['b', 3]]);
+      
+      expect(deepEqual(map1, map2)).toBe(true);
+      expect(deepEqual(map1, map3)).toBe(false);
+    });
+
+    it('should compare Sets correctly', () => {
+      const set1 = new Set([1, 2, 3]);
+      const set2 = new Set([1, 2, 3]);
+      const set3 = new Set([1, 2, 4]);
+      
+      expect(deepEqual(set1, set2)).toBe(true);
+      expect(deepEqual(set1, set3)).toBe(false);
+    });
+
+    it('should compare Sets with objects correctly', () => {
+      const set1 = new Set([{ a: 1 }]);
+      const set2 = new Set([{ a: 1 }]);
+      const set3 = new Set([{ a: 2 }]);
+      
+      expect(deepEqual(set1, set2)).toBe(true);
+      expect(deepEqual(set1, set3)).toBe(false);
+    });
+  });
+
+  describe('typed arrays', () => {
+    it('should compare TypedArrays correctly', () => {
+      const arr1 = new Uint8Array([1, 2, 3]);
+      const arr2 = new Uint8Array([1, 2, 3]);
+      const arr3 = new Uint8Array([1, 2, 4]);
+      
+      expect(deepEqual(arr1, arr2)).toBe(true);
+      expect(deepEqual(arr1, arr3)).toBe(false);
+    });
+
+    it('should compare ArrayBuffers correctly', () => {
+      const buf1 = new ArrayBuffer(3);
+      const buf2 = new ArrayBuffer(3);
+      const buf3 = new ArrayBuffer(4);
+      const view1 = new Uint8Array(buf1);
+      const view2 = new Uint8Array(buf2);
+      view1.set([1, 2, 3]);
+      view2.set([1, 2, 3]);
+      
+      expect(deepEqual(buf1, buf2)).toBe(true);
+      expect(deepEqual(buf1, buf3)).toBe(false);
+    });
+  });
+
+  describe('constructor comparison', () => {
+    class Animal {
+      constructor(public name: string) {}
+    }
+
+    class Dog extends Animal {
+      constructor(name: string, public breed: string) {
+        super(name);
+      }
+    }
+
+    class Cat extends Animal {
+      constructor(name: string, public lives: number = 9) {
+        super(name);
+      }
+    }
+
+    it('should compare objects with same constructor correctly', () => {
+      const dog1 = new Dog('Rex', 'German Shepherd');
+      const dog2 = new Dog('Rex', 'German Shepherd');
+      expect(deepEqual(dog1, dog2)).toBe(true);
+      
+      dog2.breed = 'Labrador';
+      expect(deepEqual(dog1, dog2)).toBe(false);
+    });
+
+    it('should identify objects with different constructors as not equal', () => {
+      const dog = new Dog('Rex', 'German Shepherd');
+      const cat = new Cat('Rex', 9);
+      expect(deepEqual(dog, cat)).toBe(false);
+    });
+
+    it('should differentiate between plain objects and class instances', () => {
+      const dogClass = new Dog('Rex', 'German Shepherd');
+      const dogPlain = { name: 'Rex', breed: 'German Shepherd' };
+      expect(deepEqual(dogClass, dogPlain)).toBe(false);
+    });
+
+    it('should handle inherited class hierarchies', () => {
+      const animal = new Animal('Rex');
+      const dog = new Dog('Rex', 'German Shepherd');
+      expect(deepEqual(animal, dog)).toBe(false);
+    });
+
+    it('should compare built-in types with different constructors', () => {
+      // Array vs Object with same contents
+      expect(deepEqual(['a', 'b'], { 0: 'a', 1: 'b', length: 2 })).toBe(false);
+      
+      // Map vs Object with same key-values
+      const map = new Map([['a', 1], ['b', 2]]);
+      const obj = { a: 1, b: 2 };
+      expect(deepEqual(map, obj)).toBe(false);
+      
+      // Set vs Array with same values
+      const set = new Set([1, 2, 3]);
+      const arr = [1, 2, 3];
+      expect(deepEqual(set, arr)).toBe(false);
+    });
+
+    it('should handle null prototype objects', () => {
+      const nullProtoObj = Object.create(null);
+      nullProtoObj.a = 1;
+      
+      const regularObj = { a: 1 };
+      
+      expect(deepEqual(nullProtoObj, regularObj)).toBe(false);
+    });
+
+    it('should compare objects with modified prototypes', () => {
+      function CustomType() {}
+      const obj1 = new (CustomType as any)();
+      const obj2 = new (CustomType as any)();
+      
+      obj1.a = 1;
+      obj2.a = 1;
+      
+      expect(deepEqual(obj1, obj2)).toBe(true);
+      
+      // Modify prototype
+      CustomType.prototype.b = 2;
+      expect(deepEqual(obj1, obj2)).toBe(true);
+    });
+  });
+  describe('cyclical references', () => {
+    it('should handle simple circular references', () => {
+      const obj1: any = { a: 1 };
+      const obj2: any = { a: 1 };
+      obj1.self = obj1;
+      obj2.self = obj2;
+      
+      expect(deepEqual(obj1, obj2)).toBe(true);
+    });
+
+    it('should handle complex circular references', () => {
+      const obj1: any = { a: 1 };
+      const obj2: any = { a: 1 };
+      const child1: any = { parent: obj1 };
+      const child2: any = { parent: obj2 };
+      obj1.child = child1;
+      obj2.child = child2;
+      
+      expect(deepEqual(obj1, obj2)).toBe(true);
+    });
+
+    it('should handle circular references in arrays', () => {
+      const arr1: any[] = [1, 2, 3];
+      const arr2: any[] = [1, 2, 3];
+      arr1.push(arr1);
+      arr2.push(arr2);
+      
+      expect(deepEqual(arr1, arr2)).toBe(true);
+    });
+
+    it('should handle graph-like structures', () => {
+      // Create a simple graph where nodes reference each other
+      const node1a: any = { value: 1 };
+      const node2a: any = { value: 2 };
+      const node3a: any = { value: 3 };
+      node1a.next = node2a;
+      node2a.next = node3a;
+      node3a.next = node1a; // Create cycle
+
+      const node1b: any = { value: 1 };
+      const node2b: any = { value: 2 };
+      const node3b: any = { value: 3 };
+      node1b.next = node2b;
+      node2b.next = node3b;
+      node3b.next = node1b; // Create cycle
+
+      expect(deepEqual(node1a, node1b)).toBe(true);
+      
+      // Modify a value in the cycle
+      node2b.value = 4;
+      expect(deepEqual(node1a, node1b)).toBe(false);
+    });
+  });
+
+  describe('skipHeavyComputations flag', () => {
+    it('should skip detailed comparison of ArrayBuffers when flag is true', () => {
+      const buf1 = new ArrayBuffer(1000);
+      const buf2 = new ArrayBuffer(1000);
+      const view1 = new Uint8Array(buf1);
+      const view2 = new Uint8Array(buf2);
+      view1.set([1]);
+      view2.set([2]); // Different content
+      
+      expect(deepEqual(buf1, buf2, true)).toBe(true); // Skip comparison
+      expect(deepEqual(buf1, buf2, false)).toBe(false); // Detailed comparison
+    });
+
+    it('should skip detailed comparison of TypedArrays when flag is true', () => {
+      const arr1 = new Uint8Array(1000);
+      const arr2 = new Uint8Array(1000);
+      arr1[0] = 1;
+      arr2[0] = 2; // Different content
+      
+      expect(deepEqual(arr1, arr2, true)).toBe(true); // Skip comparison
+      expect(deepEqual(arr1, arr2, false)).toBe(false); // Detailed comparison
+    });
   });
 });

@@ -5,11 +5,13 @@ export const isInternal = <FnType extends (x: any) => void>(writeFn: FnType) => 
 export const deepEqual = (obj1: any, obj2: any, skipHeavyComputations: boolean = false): boolean => {
   const seen = new WeakMap();
   const deepCompare = (o1: any, o2: any): boolean => {
-    if (o1 === o2) return true;
-
     // Handle null and non-object types
-    if (typeof o1 !== 'object' || typeof o2 !== 'object' || o1 === null || o2 === null) {
-      return false;
+    if (typeof o1 !== 'object' || typeof o2 !== 'object') {
+      return o1 === o2;
+    }
+    
+    if (o1 === null || o2 === null) {
+      return o1 === o2;
     }
 
     // Handle cyclical references
@@ -67,11 +69,16 @@ export const deepEqual = (obj1: any, obj2: any, skipHeavyComputations: boolean =
     if (o1 instanceof Set && o2 instanceof Set) {
       if (o1.size !== o2.size) return false;
       for (const value of o1) {
-        if (!o2.has(value)) {
+        if (!Array.from(o2).some(item => deepCompare(value, item))) {
           return false;
         }
       }
       return true;
+    }
+
+    // Check if objects are of the same constructor
+    if (o1.constructor !== o2.constructor) {
+      return false;
     }
 
     // Handle arrays and objects
@@ -79,16 +86,9 @@ export const deepEqual = (obj1: any, obj2: any, skipHeavyComputations: boolean =
     const o2Keys = [...Object.keys(o2), ...Object.getOwnPropertySymbols(o2)];
     if (o1Keys.length !== o2Keys.length) return false;
 
-    // Check if all keys in o1 exist in o2
+    // Check if all keys in o1 exist in o2 and have the same values
     for (const key of o1Keys) {
-      if (!Object.hasOwnProperty.call(o2, key)) {
-        return false;
-      }
-    }
-
-    // Recursively compare values
-    for (const key of o1Keys) {
-      if (!deepCompare(o1[key], o2[key])) {
+      if (!Object.prototype.hasOwnProperty.call(o2, key) || !deepCompare(o1[key], o2[key])) {
         return false;
       }
     }
