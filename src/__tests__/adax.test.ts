@@ -1,5 +1,5 @@
 import { trigger, subscribe, addRule, removeRule, clearAllRules, kernelStore, KernelStore, Result } from '../index';
-
+import { deepEqual } from '../store/utils';
 type ColorCounterTuple = {
   counter: number,
   color: 'red' | 'blue'
@@ -533,6 +533,7 @@ describe("adax by default, queries return expected data, prevData & version", ()
         writeFn: ((x: any) => void) | undefined,
         writeParamsObj: unknown | undefined
       }) => {
+        console.log('>>>> data, prevData', data, prevData);
       result.data = data;
       result.prevData = prevData;
       result.version = version;
@@ -541,14 +542,17 @@ describe("adax by default, queries return expected data, prevData & version", ()
     };
     const { on } = subscribe(readTrigger, getByTeam, {team: 'right'});
     on();
+    console.log('BEFORE incrementCounterByTeam:: result.data, result.prevData',result.data, result.prevData);
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
     expect(result.data).toEqual({ color: 'red',   counter: 1});
-    expect(result.prevData).toEqual({ color: 'red',   counter: 1});
+    expect(result.prevData).toEqual({ color: 'red',   counter: 0});
     expect(result.version).toEqual(1);
     expect(result.writeFn).toEqual(incrementCounterByTeam);
     expect(result.writeParamsObj).toEqual({team: 'right'});
-    expect(result.data === result.prevData).toBeTruthy();
+    console.log('#### data, prevData',result.data, result.prevData);
+    expect(result.data === result.prevData).not.toBeTruthy();
+    expect(deepEqual(result.data, result.prevData)).not.toBeTruthy();
   });
 
   it("adax by default, data === prevData for 'by value' NOT truthy", async () => {

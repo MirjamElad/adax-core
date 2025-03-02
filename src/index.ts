@@ -1,7 +1,7 @@
 import { KernelStore, kernelStore } from './store/index';
 import { getQueryPlan } from './store/read';
 import { addQuery, removeQuery, afterWrite } from './store/write';
-import { debounce, throttle, isInternal, deepEqual } from './store/utils';
+import { debounce, throttle, isInternal, deepEqual, deepClone } from './store/utils';
 import type { QueryOptions, Result } from "./store/type";
 
 export type { QueryOptions, Result } from "./store/type";
@@ -39,7 +39,7 @@ export const subscribe = <FnType extends (x: any) => any>(
   const cmpId = options.cmpId ?? getSortedID();
   /* istanbul ignore next */
   const result: Result = {
-    data: options?.skipInitalQuerying ? undefined :readFn(paramsObj),
+    data: options?.skipInitalQuerying ? undefined : deepClone(readFn(paramsObj)),
     prevData: undefined,
     version: 0,
     writeFn: undefined,

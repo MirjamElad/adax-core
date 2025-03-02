@@ -1,4 +1,4 @@
-import { deepEqual } from '../store/utils';
+import { deepEqual, deepClone } from '../store/utils';
 
 describe('deepEqual', () => {
   it('should return true for identical objects', () => {
@@ -518,3 +518,119 @@ describe('deepEqual', () => {
     });
   });
 });
+
+describe('deepClone', () => {
+  it('should create independent copies that can be compared with deepEqual', () => {
+    const data = { a: { b: { c: 1 } } };
+    const prevData = deepClone(data);
+    
+    // Initially they should be equal
+    expect(deepEqual(data, prevData)).toBe(true);
+    
+    // Modify original data
+    data.a.b.c = 2;
+    
+    // Now they should be different
+    expect(deepEqual(data, prevData)).toBe(false);
+    expect(prevData.a.b.c).toBe(1); // Original value preserved
+  });
+
+  it('should handle arrays independently', () => {
+    const data = { items: [{ id: 1, value: 'test' }] };
+    const prevData = deepClone(data);
+    
+    data.items[0].value = 'modified';
+    expect(deepEqual(data, prevData)).toBe(false);
+    expect(prevData.items[0].value).toBe('test');
+  });
+
+  it('should handle dates independently', () => {
+    const data = { date: new Date() };
+    const prevData = deepClone(data);
+    
+    data.date.setFullYear(1880);
+    expect(deepEqual(data, prevData)).toBe(false);
+  });
+
+  it('should handle maps independently', () => {
+    const map = new Map([['key', { value: 1 }]]);
+    const data = { map };
+    const prevData = deepClone(data);
+    
+    (data.map.get('key') as any).value = 2;
+    expect(deepEqual(data, prevData)).toBe(false);
+    expect((prevData.map.get('key') as any).value).toBe(1);
+  });
+
+  it('should handle sets independently', () => {
+    const data = { set: new Set([{ id: 1 }]) };
+    const prevData = deepClone(data);
+    
+    data.set.clear();
+    expect(deepEqual(data, prevData)).toBe(false);
+    expect(prevData.set.size).toBe(1);
+  });
+
+  it('should handle class instances', () => {
+    class TestClass {
+      constructor(public value: number) {}
+    }
+    
+    const data = { instance: new TestClass(1) };
+    const prevData = deepClone(data);
+    
+    data.instance.value = 2;
+    expect(deepEqual(data, prevData)).toBe(false);
+    expect(prevData.instance.value).toBe(1);
+    expect(prevData.instance instanceof TestClass).toBe(true);
+  });
+});
+
+describe('deepClone TypedArray handling', () => {
+    it('should clone Uint8Array correctly', () => {
+      const original = new Uint8Array([1, 2, 3]);
+      const cloned = deepClone(original);
+      
+      expect(cloned).toBeInstanceOf(Uint8Array);
+      expect(cloned.buffer).not.toBe(original.buffer); // Different buffer
+      expect(Array.from(cloned)).toEqual([1, 2, 3]); // Same content
+      
+      // Modify original
+      original[0] = 9;
+      expect(cloned[0]).toBe(1); // Cloned array unchanged
+    });
+  
+    it('should clone Float32Array correctly', () => {
+      const original = new Float32Array([1.1, 2.2, 3.3]);
+      const cloned = deepClone(original);
+      
+      expect(cloned).toBeInstanceOf(Float32Array);
+      expect(cloned.buffer).not.toBe(original.buffer);
+      expect(Array.from(cloned)).toEqual([1.100000023841858, 2.200000047683716, 3.299999952316284]); // Float32 precision
+      
+      // Modify original
+      original[0] = 9.9;
+      expect(cloned[0]).toBeCloseTo(1.1);
+    });
+  
+    it('should clone nested TypedArrays', () => {
+      const data = {
+        arrays: [
+          new Uint8Array([1, 2, 3]),
+          new Float32Array([4.4, 5.5])
+        ]
+      };
+      
+      const cloned = deepClone(data);
+      
+      expect(cloned.arrays[0]).toBeInstanceOf(Uint8Array);
+      expect(cloned.arrays[1]).toBeInstanceOf(Float32Array);
+      
+      // Modify original
+      data.arrays[0][0] = 9;
+      data.arrays[1][0] = 9.9;
+      
+      expect(cloned.arrays[0][0]).toBe(1);
+      expect(cloned.arrays[1][0]).toBeCloseTo(4.4);
+    });
+  });

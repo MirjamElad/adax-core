@@ -99,6 +99,90 @@ export const deepEqual = (obj1: any, obj2: any, skipHeavyComputations: boolean =
   return deepCompare(obj1, obj2);
 };
 
+export const deepClone = <T>(obj: T): T => {
+  // Handle null and undefined
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  // Handle primitive types
+  if (typeof obj !== 'object') {
+    return obj;
+  }
+
+  // Handle Date objects
+  if (obj instanceof Date) {
+    return new Date(obj.getTime()) as T;
+  }
+
+  // Handle RegExp objects
+  if (obj instanceof RegExp) {
+    return new RegExp(obj.source, obj.flags) as T;
+  }
+
+  // Handle ArrayBuffer objects
+  if (obj instanceof ArrayBuffer) {
+    const clone = new ArrayBuffer(obj.byteLength);
+    new Uint8Array(clone).set(new Uint8Array(obj));
+    return clone as T;
+  }
+
+  // Handle TypedArray objects
+  if (ArrayBuffer.isView(obj)) {
+    type TypedArrayType = {
+      buffer: ArrayBuffer;
+      byteOffset: number;
+      length: number;
+      constructor: new (buffer: ArrayBuffer, byteOffset: number, length: number) => TypedArrayType;
+    };
+    
+    const typedArray = obj as unknown as TypedArrayType;
+    const clone = new typedArray.constructor(
+      typedArray.buffer.slice(0),
+      typedArray.byteOffset,
+      typedArray.length
+    );
+    return clone as T;
+  }
+
+  // Handle Map objects
+  if (obj instanceof Map) {
+    const clone = new Map();
+    for (const [key, value] of obj) {
+      clone.set(deepClone(key), deepClone(value));
+    }
+    return clone as T;
+  }
+
+  // Handle Set objects
+  if (obj instanceof Set) {
+    const clone = new Set();
+    for (const value of obj) {
+      clone.add(deepClone(value));
+    }
+    return clone as T;
+  }
+
+  // Handle Arrays
+  if (Array.isArray(obj)) {
+    return obj.map(item => deepClone(item)) as T;
+  }
+
+  // Handle plain objects and class instances
+  const clone = Object.create(Object.getPrototypeOf(obj));
+  
+  // Copy own properties
+  for (const key of [...Object.getOwnPropertyNames(obj), ...Object.getOwnPropertySymbols(obj)]) {
+    const descriptor = Object.getOwnPropertyDescriptor(obj, key)!;
+    if (descriptor.value !== undefined) {
+      descriptor.value = deepClone(descriptor.value);
+    }
+    Object.defineProperty(clone, key, descriptor);
+  }
+
+  return clone;
+};
+
 export const throttle = (func: Function, wait: number) => {
   let timeout: ReturnType<typeof setTimeout>;
   let lastCall = 0;
