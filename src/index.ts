@@ -37,6 +37,7 @@ export const subscribe = <FnType extends (x: any) => any>(
 ) => {
   /* istanbul ignore next */
   const cmpId = options.cmpId ?? getSortedID();
+  options.hasResultChanged = options.hasResultChanged || ((data:any, prevData:any) => ! deepEqual(data, prevData));
   /* istanbul ignore next */
   const result: Result = {
     data: options?.skipInitalQuerying ? undefined : deepClone(readFn(paramsObj)),
@@ -91,7 +92,6 @@ export const useSync = <FnType extends (x: any) => any>(
   options: QueryOptions = {},
   stores: { kernel: KernelStore } = { kernel: kernelStore }
 ) => {
-  options.hasResultChanged = options.hasResultChanged || ((data:any, prevData:any) => ! deepEqual(data, prevData));
   const { result, on, off } = subscribe(
     (result) => render(result),
     query,

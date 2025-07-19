@@ -5,7 +5,7 @@ import {
     SkipCondition,
     Result
 } from './type';
-import { isInternal, deepClone, deepEqual } from './utils';
+import { isInternal, deepClone } from './utils';
 import { KernelStore, kernelStore } from './index';
 
 /* istanbul ignore next */
@@ -13,17 +13,9 @@ export const getExecStack = (_: any = null, stores: { kernel: KernelStore } = { 
 
 const setResult = (queryInstance: QueryInstance, queryFn: QueryFn, writeFn: (x: any) => void, writeParamsObj: unknown) => {
   ////////// dev mode so that it doesnot need rules, but too expensive for prod mode //////////
-  //// queryInstance.result!.prevData = deepClone(queryInstance.result!.data);  ////
-  ////////// ////////// ////////// ////////// ////////// ////////// ////////// //////////
-  console.log('READ::initial prevData >>>', queryInstance.result!.prevData);
-  console.log('READ::initial data >>>', queryInstance.result!.data);
-  const cloned = deepClone(queryInstance.result!.data);
-  console.log('READ::cloned >>>', cloned);
-  queryInstance.result!.prevData = cloned;
-  //queryInstance.result!.prevData = queryInstance.result!.data;
-  const res = queryFn(queryInstance.paramsObj);
-  console.log(`READ::res queryFn(${JSON.stringify(queryInstance.paramsObj, null, 2)}) data >>>`, res);
-  queryInstance.result!.data = res;
+  queryInstance.result!.prevData = deepClone(queryInstance.result!.data);
+  //TODO: in production mode: queryInstance.result!.prevData = queryInstance.result!.data;
+  queryInstance.result!.data = queryFn(queryInstance.paramsObj);
   queryInstance.result!.version = queryInstance.result!.version + 1;
   queryInstance.result!.writeFn = writeFn;
   queryInstance.result!.writeParamsObj = writeParamsObj;
@@ -37,9 +29,8 @@ const viewTrigger = (
     queryInstance.readTrigger!(queryInstance.result!);
     return;
   }
-  const hasChanged: (prevData: any, data: any) => boolean = 
-    queryInstance.options?.hasResultChanged || ((prevData: any, data: any) => !deepEqual(prevData, data));
-  if (hasChanged(queryInstance.result!.prevData, queryInstance.result!.data)) {
+  //NB: hasResultChanged is set within subscribe and defaults to deepEqual
+  if (queryInstance.options?.hasResultChanged!(queryInstance.result!.prevData, queryInstance.result!.data)) {
     queryInstance.readTrigger!(queryInstance.result!);
   }
 }
@@ -60,7 +51,6 @@ const addQueryToPlan = (
     if (!queryPlan.has(queryFn)) {
       queryPlan.set(queryFn, new Array<QueryPlanInstance>());
     }
-    console.log('addQueryToPlan::queryInstance?.result:', JSON.stringify(queryInstance?.result, null, 3));
     const queryInstancesList = queryPlan.get(queryFn)!;
     const _skip = skip && skip(writeParamsObj, queryInstance.paramsObj);
     queryInstance!.result = queryInstance?.result || {
@@ -71,7 +61,6 @@ const addQueryToPlan = (
       writeParamsObj: undefined
     };
     
-    console.log('addQueryToPlan::queryInstance!.result:', JSON.stringify(queryInstance!.result, null, 3));
     if (!_skip && queryInstance?.readTrigger) {
       dataComputationCallBacks.push(() => {
         setResult(queryInstance, queryFn, writeFn, writeParamsObj);
