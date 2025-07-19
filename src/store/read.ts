@@ -5,7 +5,7 @@ import {
     SkipCondition,
     Result
 } from './type';
-import { isInternal, deepClone } from './utils';
+import { isInternal, deepClone, deepEqual } from './utils';
 import { KernelStore, kernelStore } from './index';
 
 /* istanbul ignore next */
@@ -29,16 +29,19 @@ const setResult = (queryInstance: QueryInstance, queryFn: QueryFn, writeFn: (x: 
   queryInstance.result!.writeParamsObj = writeParamsObj;
 }
 
-const viewTrigger = (queryInstance: QueryInstance, forceRun: boolean) => {
-  if (
-      !forceRun && 
-      queryInstance.options?.hasResultChanged && 
-      !queryInstance.options?.hasResultChanged(queryInstance.result!.prevData, queryInstance.result!.data)
-    )   {
-    console.info('{prevData, data}:', {prevData: queryInstance.result!.prevData, data: queryInstance.result!.data});
+const viewTrigger = (
+  stores: { kernel: KernelStore },
+  queryInstance: QueryInstance, 
+  fromRule: boolean | undefined) => {
+  if (fromRule || stores.kernel.runAllQueries){
+    queryInstance.readTrigger!(queryInstance.result!);
     return;
   }
-  queryInstance.readTrigger!(queryInstance.result!);
+  const hasChanged: (prevData: any, data: any) => boolean = 
+    queryInstance.options?.hasResultChanged || ((prevData: any, data: any) => !deepEqual(prevData, data));
+  if (hasChanged(queryInstance.result!.prevData, queryInstance.result!.data)) {
+    queryInstance.readTrigger!(queryInstance.result!);
+  }
 }
 
 const addQueryToPlan = (
@@ -74,7 +77,7 @@ const addQueryToPlan = (
         setResult(queryInstance, queryFn, writeFn, writeParamsObj);
       });
       viewsTriggeringCallBacks.push(() => {
-        queryInstance?.readTrigger && viewTrigger(queryInstance, !!fromRules || !!(stores.kernel.runAllQueries));
+        queryInstance?.readTrigger && viewTrigger(stores, queryInstance, !!fromRules || !!(stores.kernel.runAllQueries));
       });
     }
     queryInstancesList.push({
@@ -91,21 +94,22 @@ export const  getQueryPlan = <FnType extends (x: any) => void>({writeFn, writePa
     const queryPlan: Map<QueryFn, Array<QueryPlanInstance>> = new Map();
     const dataComputationCallBacks: (() => void)[] = [];
     let viewsTriggeringCallBacks: (() => void)[] = [];
-    if (!stores.kernel.runAllQueries && stores.kernel.rules.has(writeFn)) {
+    if (!stores.kernel.runAllQueries && stores.kernel.rules.has(writeFn)) { // writeFn has rules
       const queryFnMap = stores.kernel.rules.get(writeFn)!.readersMap;
       if (!!queryFnMap?.size) {
         queryFnMap?.forEach ((skip, queryFn) => {
           addQueryToPlan(stores, queryPlan, dataComputationCallBacks, viewsTriggeringCallBacks, writeParamsObj, queryFn, writeFn, true, skip);
         });
       }
-      if (stores.kernel.queries.size > stores.kernel.reverseRules.size) {
+      if (stores.kernel.queries.size > stores.kernel.reverseRules.size) { // collect all queries NOT in any rule
         stores.kernel.queries.forEach((_, queryFn) => {
           if (!stores.kernel.reverseRules.has(queryFn)) {
+            // run all queryFn that belong to NO rule
             addQueryToPlan(stores, queryPlan, dataComputationCallBacks, viewsTriggeringCallBacks, writeParamsObj, queryFn, writeFn);
           }          
         });        
       }
-    } else if (!isInternal(writeFn)) {
+    } else if (!isInternal(writeFn)) { // runAllQueries || writeFn has no rules (and not internal) => collect all queryFn
       stores.kernel.queries.forEach((_, queryFn) => {
         addQueryToPlan(stores, queryPlan, dataComputationCallBacks, viewsTriggeringCallBacks, writeParamsObj, queryFn, writeFn);
       });
