@@ -6,6 +6,16 @@ import {
     OnWriteRule,
   } from './type';
 class KernelStore {
+    private _trackResultChanges: boolean = true;
+    get trackResultChanges(): boolean {
+        return this._trackResultChanges;
+    }
+    set trackResultChanges(newValue: boolean) {
+        if (newValue === true && this._trackResultChanges === false) {
+            throw new Error('Cannot reset trackResultChanges back to true once it has been set to false');
+        }
+        this._trackResultChanges = newValue;
+    }
     isDefaultKernelStore: boolean = true;
     runAllQueries: boolean = false;
     // What writeFn cause what queryFn to run

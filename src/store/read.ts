@@ -24,14 +24,25 @@ const setResult = (queryInstance: QueryInstance, queryFn: QueryFn, writeFn: (x: 
 const viewTrigger = (
   stores: { kernel: KernelStore },
   queryInstance: QueryInstance, 
-  fromRule: boolean | undefined) => {
+  fromRule: boolean | undefined,
+  queryFn: QueryFn
+) => {
   if (fromRule || stores.kernel.runAllQueries){
     queryInstance.readTrigger!(queryInstance.result!);
     return;
   }
   //NB: hasResultChanged is set within subscribe and defaults to deepEqual
-  if (queryInstance.options?.hasResultChanged!(queryInstance.result!.prevData, queryInstance.result!.data)) {
+  if (stores.kernel.trackResultChanges && queryInstance.options?.hasResultChanged!(queryInstance.result!.prevData, queryInstance.result!.data)) {
     queryInstance.readTrigger!(queryInstance.result!);
+    return;
+  }
+  if (!stores.kernel.trackResultChanges) {
+    //TODO: improve warn message since we can know if no rules due to missing rules for writeFn versus for queryFn
+    //TODO: re-investigate best action here in case code mignified, function names will be changed by the transpiler
+    console.warn(` Query [${queryFn?.name}] not re-run because of the combination of:
+      1- No rules found on querying ${queryFn?.name} upon triggering ${queryInstance.result.writeFn?.name}
+      2- Cannot track changes since trackResultChanges: false
+    `)
   }
 }
 
@@ -66,7 +77,7 @@ const addQueryToPlan = (
         setResult(queryInstance, queryFn, writeFn, writeParamsObj);
       });
       viewsTriggeringCallBacks.push(() => {
-        queryInstance?.readTrigger && viewTrigger(stores, queryInstance, !!fromRules || !!(stores.kernel.runAllQueries));
+        queryInstance?.readTrigger && viewTrigger(stores, queryInstance, !!fromRules || !!(stores.kernel.runAllQueries), queryFn);
       });
     }
     queryInstancesList.push({
