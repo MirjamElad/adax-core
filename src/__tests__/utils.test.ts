@@ -552,6 +552,23 @@ describe('deepClone', () => {
     expect(deepEqual(data, prevData)).toBe(false);
   });
 
+  it('should handle RegExp independently', () => {
+    const data = { regex1: /abc/gi };
+    const prevData = deepClone(data);
+    data.regex1 = /xyz/gi
+    expect(deepEqual(data, prevData)).toBe(false);
+  });
+
+  it('should handle ArrayBuffer independently', () => {    
+    const buffer1 = new ArrayBuffer(8);
+    new Uint8Array(buffer1).set([1, 2, 3, 4, 5, 6, 7, 8]);
+    const data = { arrayBuffer: buffer1 };
+    const prevData = deepClone(data);
+    new Uint8Array(buffer1).set([0, 0, 0, 0, 0, 0, 0, 0]);
+    expect(deepEqual(data, prevData)).toBe(false);
+  });
+
+
   it('should handle maps independently', () => {
     const map = new Map([['key', { value: 1 }]]);
     const data = { map };
@@ -634,3 +651,29 @@ describe('deepClone TypedArray handling', () => {
       expect(cloned.arrays[1][0]).toBeCloseTo(4.4);
     });
   });
+
+  describe('DeepEqual dummy', () => {
+    it('should handle RegExp objects', () => {
+      const regex1 = /abc/gi;
+      const regex2 = /abc/gi;
+      const regex3 = /abc/i;
+      expect(deepEqual(regex1, regex2)).toBe(true);
+      expect(deepEqual(regex1, regex3)).toBe(false);
+    });
+
+    it('should handle ArrayBuffer objects', () => {
+      const buffer1 = new ArrayBuffer(8);
+      const buffer2 = new ArrayBuffer(8);
+      const buffer3 = new ArrayBuffer(4);
+      new Uint8Array(buffer1).set([1, 2, 3, 4, 5, 6, 7, 8]);
+      new Uint8Array(buffer2).set([1, 2, 3, 4, 5, 6, 7, 8]);
+      new Uint8Array(buffer3).set([1, 2, 3, 4]);
+
+      expect(deepEqual(buffer1, buffer2)).toBe(true);
+      expect(deepEqual(buffer1, buffer3)).toBe(false);
+
+      // Skip heavy computations
+      expect(deepEqual(buffer1, buffer2, true)).toBe(true);
+      expect(deepEqual(buffer1, buffer3, true)).toBe(false);
+    });
+  })

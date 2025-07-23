@@ -13,8 +13,9 @@ class KernelStore {
     set trackResultChanges(newValue: boolean) {
         if (newValue === true && this._trackResultChanges === false) {
             throw new Error('Cannot reset trackResultChanges back to true once it has been set to false');
+        } else {
+            this._trackResultChanges = newValue;
         }
-        this._trackResultChanges = newValue;
     }
     isDefaultKernelStore: boolean = true;
     runAllQueries: boolean = false;

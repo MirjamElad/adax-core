@@ -44,10 +44,10 @@ describe("adax's kernel stores", () => {
   it("KernelStore keeps track of all its instances", async () => {
     const nonDefaultKernelStore = new KernelStore();
     const instancesList = KernelStore.getAllInstances();
-    expect(instancesList.length).toEqual(2);
+    expect(instancesList.length >= 2).toBeTruthy();
     expect(instancesList[0].isDefaultKernelStore).toEqual(true);
-    expect(instancesList[1].isDefaultKernelStore).toEqual(false);
-    expect(instancesList[1]).toEqual(nonDefaultKernelStore);
+    expect(instancesList[instancesList.length-1].isDefaultKernelStore).toEqual(false);
+    expect(instancesList[instancesList.length-1]).toEqual(nonDefaultKernelStore);
   });
   it("KernelStore getSortedID returns sorted ids", async () => {
     const someKernelStore = KernelStore.getAllInstances()[0];
@@ -283,6 +283,27 @@ describe("adax with rules, basics", () => {
     clearAllRules();
   });
 
+  it("Adding and removing rules is reflected in the KernelStore internals", async () => {
+    const dummyWriteFn = jest.fn();
+    expect(kernelStore.rules.size).toEqual(0);
+    addRule({writeFn: incrementCounterByTeam, queryFn: getByTeam}, { kernel: kernelStore });
+    addRule({writeFn: dummyWriteFn, queryFn: getCounterByTeam}, { kernel: kernelStore });
+    expect(kernelStore.rules.size).toEqual(2);
+    expect(kernelStore.reverseRules.size).toEqual(2);
+    removeRule({writeFn: incrementCounterByTeam, queryFn: getByTeam}, { kernel: kernelStore });
+    expect(kernelStore.rules.size).toEqual(1);
+    expect(kernelStore.reverseRules.size).toEqual(1);
+    //Removing the same rule more than once has no effect!
+    removeRule({writeFn: incrementCounterByTeam, queryFn: getByTeam}, { kernel: kernelStore });
+    expect(kernelStore.rules.size).toEqual(1);
+    expect(kernelStore.reverseRules.size).toEqual(1);
+    //Removing all rules ends up with no rules in the kernel!
+    removeRule({writeFn: dummyWriteFn, queryFn: getCounterByTeam});
+    expect(kernelStore.rules.size).toEqual(0);
+    expect(kernelStore.reverseRules.size).toEqual(0);
+    clearAllRules();
+  });
+
   it("trigger causes only queries in relevant rules to fire", async () => {
     const readTrigger_1 = jest.fn();
     const readTrigger_2 = jest.fn();
@@ -440,7 +461,7 @@ describe("adax with rules, basics", () => {
     expect(getCounterByTeamLeft).toHaveBeenCalledTimes(1);
     expect(getCounterByTeamRight).toHaveBeenLastCalledWith({data: 1, prevData:0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
     expect(getCounterByTeamLeft).toHaveBeenLastCalledWith({data: 0, prevData:0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
-    //removing the rule for getCounterByTeam but adding another rule not have empty rules ( when zero rules: ALL queries are called!)
+    //removing the rule for getCounterByTeam but adding another rule not have empty rules
     removeRule({writeFn: incrementCounterByTeam, queryFn: getCounterByTeam});
     //////////////////////////////////////////////////////////////////////////
     trigger(incrementCounterByTeam, {team: 'right'});
@@ -831,5 +852,52 @@ describe("adax with options", () => {
     expect(() => {
       subscribe(() => {}, getCounterByTeam, {team: 'right'}, { debounceMs: 10, throttleMs: 10 })
     }).toThrow("Cannot have both debounce and throttle options for any given query");
+  });
+});
+
+describe("adax's when not tracking changes", () => {
+  const kernelWithoutTracking = new KernelStore();  
+  //Disabling tracking
+  kernelWithoutTracking.trackResultChanges = false;
+  beforeEach(() => resetStore());
+  afterEach(() => resetStore());
+
+  it("If one disables tracking, one CANNOT enable it again", async () => {    
+    //Enabling tracking throws an exception
+    expect(() => {
+      kernelWithoutTracking.trackResultChanges = true;
+    }).toThrow("Cannot reset trackResultChanges back to true once it has been set to false");    
+  });
+  it("Queries NOT in any rule won't fire even if their results changed", async () => {
+    //Disabling tracking
+    kernelWithoutTracking.trackResultChanges = false;
+    const readTrigger_1 = jest.fn();
+    const readTrigger_2 = jest.fn();
+    const readTrigger_3 = jest.fn();
+    const readTrigger_4 = jest.fn();
+    addRule({writeFn: incrementCounterByTeam, queryFn: getByTeam}, {kernel: kernelWithoutTracking});
+    ////////// getCounterByTeam is not in any rule! ////////////
+    const { on: on_1 } = subscribe(readTrigger_1, getCounterByTeam, {team: 'right'}, {}, {kernel: kernelWithoutTracking});
+    const { on: on_2 } = subscribe(readTrigger_2, getCounterByTeam, {team: 'left'}, {}, {kernel: kernelWithoutTracking});
+    ////////////////////////////////////////////////////////////
+    const { on: on_3 } = subscribe(readTrigger_3, getByTeam, {team: 'right'}, {}, {kernel: kernelWithoutTracking});
+    const { on: on_4 } = subscribe(readTrigger_4, getByTeam, {team: 'left'}, {}, {kernel: kernelWithoutTracking});
+    on_1();
+    on_2();
+    on_3();
+    on_4();
+    trigger(incrementCounterByTeam, {team: 'right'}, {kernel: kernelWithoutTracking});
+    await new Promise(resolve => setTimeout(resolve, 1));
+    ////////// readTrigger_1 is NOT called because getCounterByTeam is not in any rule even though its results changed! ////////////
+    expect(readTrigger_1).not.toHaveBeenCalled();
+    ////////// readTrigger_2 is not in any rule and is not called (The fact its results has NOT changed is not important since we are not tracking anyway)
+    expect(readTrigger_2).not.toHaveBeenCalled();
+    ////////////////////////////////////////////////////////////
+    expect(readTrigger_3).toHaveBeenCalledTimes(1);
+    //Note how data and prevData are the same value (not tracking changes => no deep cloning older data onto prevData)
+    expect(readTrigger_3).toHaveBeenLastCalledWith({data: { color: 'red', counter: 1}, prevData: { color: 'red', counter: 1}, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
+    ///////// readTrigger_4 is called although its result has NOT changed because it is in a rule!
+    expect(readTrigger_4).toHaveBeenCalledTimes(1);
+    expect(readTrigger_4).toHaveBeenLastCalledWith({data: { color: 'blue', counter: 0}, prevData: { color: 'blue', counter: 0}, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
   });
 });

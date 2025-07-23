@@ -11,10 +11,14 @@ import { KernelStore, kernelStore } from './index';
 /* istanbul ignore next */
 export const getExecStack = (_: any = null, stores: { kernel: KernelStore } = { kernel: kernelStore }) => (stores?.kernel?.execStack || []);
 
-const setResult = (queryInstance: QueryInstance, queryFn: QueryFn, writeFn: (x: any) => void, writeParamsObj: unknown) => {
-  ////////// dev mode so that it doesnot need rules, but too expensive for prod mode //////////
-  queryInstance.result!.prevData = deepClone(queryInstance.result!.data);
-  //TODO: in production mode: queryInstance.result!.prevData = queryInstance.result!.data;
+const setResult = (  
+  stores: { kernel: KernelStore },
+  queryInstance: QueryInstance,
+  queryFn: QueryFn,
+  writeFn: (x: any) => void,
+  writeParamsObj: unknown) => {
+  //TODO: revisit production/developement mode: trackResultChanges=false/true;
+  queryInstance.result!.prevData = stores.kernel.trackResultChanges ? deepClone(queryInstance.result!.data) : queryInstance.result!.data;
   queryInstance.result!.data = queryFn(queryInstance.paramsObj);
   queryInstance.result!.version = queryInstance.result!.version + 1;
   queryInstance.result!.writeFn = writeFn;
@@ -41,7 +45,7 @@ const viewTrigger = (
     //TODO: re-investigate best action here in case code mignified, function names will be changed by the transpiler
     console.warn(` Query [${queryFn?.name}] not re-run because of the combination of:
       1- No rules found on querying ${queryFn?.name} upon triggering ${queryInstance.result.writeFn?.name}
-      2- Cannot track changes since trackResultChanges: false
+      2- Cannot default to tracking changes since trackResultChanges: false
     `)
   }
 }
@@ -74,7 +78,7 @@ const addQueryToPlan = (
     
     if (!_skip && queryInstance?.readTrigger) {
       dataComputationCallBacks.push(() => {
-        setResult(queryInstance, queryFn, writeFn, writeParamsObj);
+        setResult(stores, queryInstance, queryFn, writeFn, writeParamsObj);
       });
       viewsTriggeringCallBacks.push(() => {
         queryInstance?.readTrigger && viewTrigger(stores, queryInstance, !!fromRules || !!(stores.kernel.runAllQueries), queryFn);
