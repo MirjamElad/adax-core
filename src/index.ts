@@ -39,6 +39,8 @@ export const subscribe = <FnType extends (x: any) => any>(
   const cmpId = options.cmpId ?? getSortedID();
   options.hasResultChanged = options.hasResultChanged || ((data:any, prevData:any) => ! deepEqual(data, prevData));
   /* istanbul ignore next */
+  
+  console.info('>>> subscribe:', readFn)
   const result: Result = {    
     //TODO: revisit production/developement mode: trackResultChanges=false/true;
     data: options?.skipInitalQuerying ? undefined : stores.kernel.trackResultChanges ? deepClone(readFn(paramsObj)) : readFn(paramsObj),
@@ -103,4 +105,31 @@ export const useSync = <FnType extends (x: any) => any>(
   on();
   render(result);
   return off;
+};
+
+export const AdaxComponent =  <FnType extends (x: any) => any>(
+  onChange: (data: ReturnType<FnType>) => void,
+  off: () => void,
+  query: FnType,
+  paramsObj?: Parameters<FnType>[0],
+  options: QueryOptions = {},
+  stores: { kernel: KernelStore } = { kernel: kernelStore }
+) => {
+  const { result, on: innerOn, off: innerOff } = subscribe(
+    (result) => onChange(result.data),
+    query,
+    paramsObj,
+    options,
+    stores
+  );
+  return ({
+    on:  () => {
+      innerOn();
+      onChange(result.data);
+    },
+    off: () => {
+      innerOff();
+      off();
+    }
+  });
 };
