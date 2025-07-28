@@ -20,7 +20,7 @@ const setResult = (
   //TODO: revisit production/developement mode: trackResultChanges=false/true;
   console.info('>>>> setResult b4', stores.kernel.trackResultChanges, queryInstance.result!.prevData, queryInstance.result!.data);
   queryInstance.result!.prevData = stores.kernel.trackResultChanges ? deepClone(queryInstance.result!.data) : queryInstance.result!.data;
-  queryInstance.result!.data = queryFn(queryInstance.paramsObj);
+  queryInstance.result!.data = stores.kernel.trackResultChanges ? deepClone(queryFn(queryInstance.paramsObj)) : queryFn(queryInstance.paramsObj);
   queryInstance.result!.version = queryInstance.result!.version + 1;
   queryInstance.result!.writeFn = writeFn;
   queryInstance.result!.writeParamsObj = writeParamsObj;
