@@ -18,13 +18,11 @@ const setResult = (
   writeFn: (x: any) => void,
   writeParamsObj: unknown) => {
   //TODO: revisit production/developement mode: trackResultChanges=false/true;
-  console.info('>>>> setResult b4', stores.kernel.trackResultChanges, queryInstance.result!.prevData, queryInstance.result!.data);
   queryInstance.result!.prevData = stores.kernel.trackResultChanges ? deepClone(queryInstance.result!.data) : queryInstance.result!.data;
   queryInstance.result!.data = stores.kernel.trackResultChanges ? deepClone(queryFn(queryInstance.paramsObj)) : queryFn(queryInstance.paramsObj);
   queryInstance.result!.version = queryInstance.result!.version + 1;
   queryInstance.result!.writeFn = writeFn;
   queryInstance.result!.writeParamsObj = writeParamsObj;
-  console.info('>>>> setResult after', stores.kernel.trackResultChanges, queryInstance.result!.prevData, queryInstance.result!.data);
 }
 
 const viewTrigger = (
@@ -49,8 +47,6 @@ const viewTrigger = (
       1- No rules found on querying ${queryFn?.name} upon triggering ${queryInstance.result.writeFn?.name}
       2- Cannot default to tracking changes since trackResultChanges: false
     `)
-  } else {
-    console.info('>>>> viewTrigger NOT triggering trackResultChanges:', stores.kernel.trackResultChanges);
   }
 }
 

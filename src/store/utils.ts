@@ -100,7 +100,6 @@ export const deepEqual = (obj1: any, obj2: any, skipHeavyComputations: boolean =
 };
 
 export const deepClone = <T>(obj: T): T => {
-  console.info('>>> deepClone:', obj)
   // Handle null and undefined
   if (obj === null || obj === undefined) {
     return obj;

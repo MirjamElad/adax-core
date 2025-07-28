@@ -39,8 +39,6 @@ export const subscribe = <FnType extends (x: any) => any>(
   const cmpId = options.cmpId ?? getSortedID();
   options.hasResultChanged = options.hasResultChanged || ((data:any, prevData:any) => ! deepEqual(data, prevData));
   /* istanbul ignore next */
-  
-  console.info('>>> subscribe:', readFn)
   const result: Result = {    
     //TODO: revisit production/developement mode: trackResultChanges=false/true;
     data: options?.skipInitalQuerying ? undefined : stores.kernel.trackResultChanges ? deepClone(readFn(paramsObj)) : readFn(paramsObj),
