@@ -11,15 +11,6 @@ import { KernelStore, kernelStore } from './index';
 /* istanbul ignore next */
 export const getExecStack = (_: any = null, stores: { kernel: KernelStore } = { kernel: kernelStore }) => (stores?.kernel?.execStack || []);
 
-const possibleStatusList = ['IDLE','TYPING','SEARCHING','DONE','ERROR']
-const myDebug = (prefix: string, result: Result) => {
-  if ((typeof result!.data !== "string") || possibleStatusList.indexOf(result!.data) === -1) return;
-  console.info(`\n\n`);
-  console.info(`>>>>>>>>>> ${prefix} >>>>>>>>>>>>>>`);
-  console.info(`>>> prevData, data:`, result.prevData, result.data);
-  console.info(`\n\n`);
-}
-
 const setResult = (  
   stores: { kernel: KernelStore },
   queryInstance: QueryInstance,
@@ -27,14 +18,12 @@ const setResult = (
   writeFn: (x: any) => void,
   writeParamsObj: unknown
 ) => {
-  myDebug('B4', queryInstance.result);
   //TODO: revisit production/developement mode: trackResultChanges=false/true;
   queryInstance.result!.prevData = stores.kernel.trackResultChanges ? deepClone(queryInstance.result!.data) : queryInstance.result!.data;
   queryInstance.result!.data = stores.kernel.trackResultChanges ? deepClone(queryFn(queryInstance.paramsObj)) : queryFn(queryInstance.paramsObj);
   queryInstance.result!.version = queryInstance.result!.version + 1;
   queryInstance.result!.writeFn = writeFn;
   queryInstance.result!.writeParamsObj = writeParamsObj;
-  myDebug('AFTER', queryInstance.result);
 }
 
 const viewTrigger = (
