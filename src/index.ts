@@ -20,8 +20,8 @@ export const trigger = <FnType extends (x: any) => void>(
     const { queryPlan, computeData, triggerViews } = getQueryPlan({writeFn, writeParamsObj}, stores);    
     writeFn(writeParamsObj);
     computeData();
+    triggerViews();
     setTimeout(()=> {
-      triggerViews();
       if (!isInternal(writeFn)) {
         trigger(afterWrite, { writeFn, writeParamsObj, queryPlan }, stores);
       }
