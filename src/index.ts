@@ -105,29 +105,29 @@ export const useSync = <FnType extends (x: any) => any>(
   return off;
 };
 
-export const AdaxComponent =  <FnType extends (x: any) => any>(
-  onChange: (data: ReturnType<FnType>) => void,
-  off: () => void,
-  query: FnType,
-  paramsObj?: Parameters<FnType>[0],
-  options: QueryOptions = {},
-  stores: { kernel: KernelStore } = { kernel: kernelStore }
-) => {
-  const { result, on: innerOn, off: innerOff } = subscribe(
-    (result) => onChange(result.data),
-    query,
-    paramsObj,
-    options,
-    stores
-  );
-  return ({
-    on:  () => {
-      innerOn();
-      onChange(result.data);
-    },
-    off: () => {
-      innerOff();
-      off();
-    }
-  });
-};
+// export const AdaxComponent =  <FnType extends (x: any) => any>(
+//   onChange: (data: ReturnType<FnType>) => void,
+//   off: () => void,
+//   query: FnType,
+//   paramsObj?: Parameters<FnType>[0],
+//   options: QueryOptions = {},
+//   stores: { kernel: KernelStore } = { kernel: kernelStore }
+// ) => {
+//   const { result, on: innerOn, off: innerOff } = subscribe(
+//     (result) => onChange(result.data),
+//     query,
+//     paramsObj,
+//     options,
+//     stores
+//   );
+//   return ({
+//     on:  () => {
+//       innerOn();
+//       onChange(result.data);
+//     },
+//     off: () => {
+//       innerOff();
+//       off();
+//     }
+//   });
+// };

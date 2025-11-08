@@ -19,22 +19,22 @@ const resetStore = (store: TestStore = testStore) => {
   store['left'].counter = 0;
 };
 
-const getAll = (_: any = null,  stores = { testStore }) => (testStore);
+const getAll = (_: any = null,  stores = { testStore }) => (stores.testStore);
 
 const getByTeam: ({team}: {team: 'right' | 'left'},  stores?: {testStore: TestStore}) => ColorCounterTuple = 
-  ({team}: {team: 'right' | 'left'} = {team: 'right'},  stores = { testStore }) => testStore[team];
+  ({team}: {team: 'right' | 'left'} = {team: 'right'},  stores = { testStore }) => stores.testStore[team];
 
 const getCounterByTeam: ({team}: {team: 'right' | 'left'},  stores?: {testStore: TestStore}) => number  = 
-  ({team}: {team: 'right' | 'left'} = {team: 'right'},  stores = { testStore }) => (testStore[team]?.counter || 0);
+  ({team}: {team: 'right' | 'left'} = {team: 'right'},  stores = { testStore }) => (stores.testStore[team]?.counter || 0);
 
 const aggregateCounters = (_: any = null,  stores = { testStore }) => 
-    ({total: testStore['right'].counter + testStore['left'].counter});
+    ({total: stores.testStore['right'].counter + stores.testStore['left'].counter});
 
 const incrementCounterByTeam: ({team}: {team: 'right' | 'left'},  stores?: {testStore: TestStore}) => void  = 
-  ({team}: {team: 'right' | 'left'} = {team: 'right'},  stores = { testStore }) => testStore[team] && testStore[team].counter++;
+  ({team}: {team: 'right' | 'left'} = {team: 'right'},  stores = { testStore }) =>stores.testStore[team] && stores.testStore[team].counter++;
 
 const decrementCounterByTeam: ({team}: {team: 'right' | 'left'},  stores?: {testStore: TestStore}) => void  =
-  ({team}: {team: 'right' | 'left'} = {team: 'right'},  stores = { testStore }) => testStore[team] && testStore[team].counter--;
+  ({team}: {team: 'right' | 'left'} = {team: 'right'},  stores = { testStore }) => stores.testStore[team] && stores.testStore[team].counter--;
 
 
 describe("adax's kernel stores", () => {
