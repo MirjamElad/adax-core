@@ -4,7 +4,7 @@
 Adax has three "public" functions.
 1. useSync to subscribe to read/query function
     if fn hasResultChanged is not defined by the user it defaults to !deepEqual
-    if !skipInitalQuerying it deepClone readFn onto result.data
+    if !skipInitialQuerying it deepClone readFn onto result.data
     it sets result, readTrigger ...etc within queryInstance in an addQuery call (see ADAX-Overview.png)
 2. trigger to wrap writeFn
     calls getQueryPlan to get computeData + triggerViews

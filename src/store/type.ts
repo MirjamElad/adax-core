@@ -26,7 +26,7 @@ export type QueryOptions = {
   // debounce/throttle callBack to query & re-render
   debounceMs?: number;
   throttleMs?: number;
-  skipInitalQuerying?: boolean; // if true the "hook" only calls readFn onChange and not on inital call of the hook!
+  skipInitialQuerying?: boolean; // if true the "hook" only calls readFn onChange and not on inital call of the hook!
   //We allow adax adapters to pass any extra option!
   [key: string]: any;
 };

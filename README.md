@@ -1,54 +1,232 @@
 # ADAX
-### The power of simplicity.
-ADAX mini-library (less than 2K gzipped) is the first step in an effort to dramatically streamline apps' **developement** and **maintenance** by simplifying their logic flow.
 
-It is usually very easy to implement and reason about a single web component life cycle.
-Complexity rises when your app grows. Indeed, The more you code, the more it becomes harder to understand how everything fits together.
+### A tiny reactive state engine for multi-framework and multi-runtime apps
 
-ADAX is committed to keeping your app as easy to maintain and reason about as it is with a simple web component!
+**ADAX** is a minimal (≈2KB gzipped), dependency-free state engine designed to work across:
 
-ADAX is so simple there is hardly anything to learn.
-No external dependencies, no complicated patterns to adopt nor boiler plate code to write.
+* Frameworks (React, Vue, Angular, Svelte, Solid, Vanilla JS)
+* Runtimes (browser, server, edge)
 
-You may even chose to only use plain old _JavaScript_ (or _TypeScript_) **from start to finish**.
-ADAX only helps you adhere to simplicity!
+But more importantly:
 
-ADAX does not force you to throw your old code. You can start using ADAX gradually in already existing apps (<sub><sup>either adopting ADAX completely or only partially</sup></sub>).
+> **ADAX allows multiple frameworks in the same app to share and react to the same state.**
 
-React | Vue | Angular | Svelte | Solid | Vanilla JS
-:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
-[![adax-react](assets/react.svg)](https://github.com/MirjamElad/adax-react)  | [![adax-vue](assets/vue.svg)](https://github.com/MirjamElad/adax-vue) |  [![adax-angular](assets/angular.svg)](https://github.com/MirjamElad/adax-angular)  | ![Nextra icon](assets/svelte.svg)  |  ![Nextra icon](assets/solid.svg)  |  [![adax-core](assets/vanilla.svg)](https://github.com/MirjamElad/adax-core)  
+---
 
-Not only is ADAX designed to be used by any front end library/framework but it also facilitates using different libraries in the same app. ADAX allows all parts/libraries of your app to fully _access_ the same state and _react_ to its changes.
-[See an example with all of React, Vue and Vanilla javascript here](https://github.com/MirjamElad/ADAX-Vanilla-Vue-React) 
+## 🚀 Why ADAX?
 
-<sub>(**NB**: _**[adax-core](https://github.com/MirjamElad/adax-core)**_ can be used with vanilla javascript or any library/framework. However, it is more convenient to use an adapter of your favorite library. We released _**[adax-react](https://github.com/MirjamElad/adax-react)**_ whereas _**adax-vue**_ and _**adax-angular**_ are being tested. More adapters coming soon)</sub>
+Modern apps are no longer single-framework, single-runtime systems.
 
+You might have:
 
-#### Overview
+* A React app embedding a Vue widget
+* A gradual migration from Angular to something else
+* Micro-frontends built with different stacks
+* Logic shared between browser, server, and edge
 
-Here's a _Typical_ scenario showing one of the ways ADAX can be used. 
+Most state libraries assume:
 
-<br /><center><Image src="/assets/ADAX-Figure-1.png" alt="Sample setup" width={300} height={300} /></center>
+> one app → one framework → one state system
 
-One can start by defining the:
+**ADAX breaks that assumption.**
 
-* **State**: much like you define the local data/state of a single web component. You define the data/state for the full application or just a subset of it.
-_Organize your state in any way you want. Per component, per group of components or the full app. Place it in a single store, multiple stores, in JSON file(s) ...etc._ 
+---
 
-* **Query**: (read) functions to reactively listen to the state changes. _Views and components need to subscribe to the data portions they are interested in. For maximum flexibility, they **subcribe to queries** rather then to predetermined objects_.
+## 🧩 What makes ADAX different?
 
-* **Mutate**: (create, update, delete) functions to change the state. _Views and components can alter the app's data/state through functions as a result of user actions, server interactions, ...etc_.
+### 1. Shared state across frameworks
 
-> As always, you can use regular and simple JavaScript/TypeScript to implement **Query** and **Mutate** functions. All such functions can be used in both visual and non-visual "components".
+Use React, Vue, and Vanilla JS **in the same app**, all connected to the same state.
 
-* **Rules**(Optional): are ADAX's thin layer to allow the app to _listen_ to the state and _react_ to its changes. _I.e. Rules for which query functions must re-run due to which mutate functions and under what conditions_.
+👉 Example:
+https://github.com/MirjamElad/ADAX-Vanilla-Vue-React
 
-ADAX has a tiny API surface: **trigger** and **useSync** to wrap mutate & query functions respectively (Both shown as dashed arrows in the figure above. Red color is used for **trigger** and blue for **useSync**). The third function is **addRule** to customize when/if reactivity happens.
+---
 
+### 2. Works everywhere
 
-Documentation for ADAX and the imeplented adapters is being worked on.
-However, most developers should be able to understand adax by just checking the provided simple example.
-[Simple **adax-react** example](https://github.com/MirjamElad/Adax-React-TW-Exp_0) (It comes with a shorter explanation of ADAX). 
+ADAX runs in:
 
-<sub>There are a number of ways to control when/if reactivity happens (views re-rendered and side-effects fired). We encourage the use of Rules as done in the simple example above. Documentation and code examples about the other options to come soon.</sub>
+* Browser
+* Node.js
+* Edge runtimes (e.g. Cloudflare Workers / Durable Objects)
+
+Same mental model everywhere.
+
+---
+
+### 3. Minimal and explicit
+
+* No dependencies
+* No boilerplate
+* No hidden magic
+
+Just a small set of primitives you fully control.
+
+---
+
+### 4. Incremental adoption
+
+You can:
+
+* Use ADAX in a small part of your app
+* Mix it with existing state solutions
+* Gradually expand usage
+
+No rewrites required.
+
+---
+
+## 🧠 Core concepts
+
+ADAX is built around four simple ideas:
+
+### **State**
+
+Your application data.
+
+Organize it however you want:
+
+* Single store
+* Multiple stores
+* Per feature, per component, or global
+
+---
+
+### **Query (read + subscribe)**
+
+Functions that:
+
+* Read state
+* React to changes
+
+Components subscribe to **queries**, not raw state.
+
+---
+
+### **Mutate (write)**
+
+Functions that:
+
+* Create / update / delete state
+
+Used from UI, services, or anywhere in your app.
+
+---
+
+### **Rules (optional but powerful)**
+
+Rules define:
+
+> **when queries should re-run based on mutations**
+
+This gives you:
+
+* Fine-grained control over reactivity
+* Predictable updates
+* Better performance tuning
+
+---
+
+## ⚙️ API
+
+ADAX intentionally keeps a tiny API surface:
+
+* `useSync(query)` → subscribe to data
+* `trigger(mutate)` → update state
+* `addRule(...)` → control reactivity
+
+That’s it.
+
+---
+
+## 🧪 Example (conceptual)
+
+```ts
+const getCount = () => state.count;
+
+const increment = () => {
+  state.count += 1;
+};
+
+// subscribe
+useSync(getCount);
+
+// update
+trigger(increment);
+```
+
+Rules can then define when `getCount` should re-run.
+
+---
+
+## 🔌 Adapters
+
+ADAX works with plain JavaScript, but adapters make integration easier:
+
+| Framework | Adapter                                  |
+| --------- | ---------------------------------------- |
+| React     | https://github.com/MirjamElad/adax-react |
+| Vue       | (in progress)                            |
+| Angular   | (in progress)                            |
+| Others    | easy to build                            |
+
+---
+
+## 🧠 When should you use ADAX?
+
+ADAX shines when you need:
+
+* Shared state across multiple frameworks
+* Micro-frontend architectures
+* Cross-runtime logic (client + server + edge)
+* A simple but explicit reactive model
+* Full control over reactivity
+
+---
+
+## ⚠️ When NOT to use it
+
+ADAX may not be ideal if you:
+
+* Want a batteries-included framework solution
+* Prefer convention-heavy tools
+* Need a large ecosystem of plugins (yet)
+
+---
+
+## 📚 Documentation
+
+Full documentation is in progress.
+
+In the meantime:
+
+* Start with the example:
+  https://github.com/MirjamElad/Adax-React-TW-Exp_0
+
+* Explore the multi-framework demo:
+  https://github.com/MirjamElad/ADAX-Vanilla-Vue-React
+
+---
+
+## 🎯 Philosophy
+
+ADAX is built on a simple idea:
+
+> Applications should remain as easy to reason about as a single component—no matter how large they grow.
+
+---
+
+## 📌 Status
+
+* Core is stable and usable
+* Adapters are being expanded
+* Documentation is actively being improved
+
+---
+
+## 🤝 Contributing / Feedback
+
+Ideas, feedback, and experiments are very welcome.
+
+If you're building something interesting with ADAX—especially across frameworks or runtimes—I'd love to hear about it.

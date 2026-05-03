@@ -746,22 +746,22 @@ describe("adax with options", () => {
     clearAllRules();
   });
 
-  it("setting a skipInitalQuerying option works", async () => {
-    const readTrigger_without_skipInitalQuerying = jest.fn();
-    const readTrigger_skipInitalQuerying = jest.fn();    
+  it("setting a skipInitialQuerying option works", async () => {
+    const readTrigger_without_skipInitialQuerying = jest.fn();
+    const readTrigger_skipInitialQuerying = jest.fn();    
     const { on: on_0, result: { data: data_0 } } = 
-      subscribe(readTrigger_without_skipInitalQuerying, getCounterByTeam, {team: 'right'});
+      subscribe(readTrigger_without_skipInitialQuerying, getCounterByTeam, {team: 'right'});
     expect(data_0).toBeDefined();
     const { on: on_1, result: { data: data_1 } } = 
-      subscribe(readTrigger_skipInitalQuerying, getCounterByTeam, {team: 'right'}, { skipInitalQuerying: true });
+      subscribe(readTrigger_skipInitialQuerying, getCounterByTeam, {team: 'right'}, { skipInitialQuerying: true });
     expect(data_1).not.toBeDefined();
     on_0();
     on_1();
     trigger(incrementCounterByTeam, {team: 'right'});
     await new Promise(resolve => setTimeout(resolve, 1));
-    expect(readTrigger_without_skipInitalQuerying).toHaveBeenCalledWith({data: 1, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
+    expect(readTrigger_without_skipInitialQuerying).toHaveBeenCalledWith({data: 1, prevData: 0, version: 1, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
     // prevData: undefine // because function only called onChange and NOT initially
-    expect(readTrigger_skipInitalQuerying).toHaveBeenCalledWith({data: 1, prevData: undefined, version: 1+0, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
+    expect(readTrigger_skipInitialQuerying).toHaveBeenCalledWith({data: 1, prevData: undefined, version: 1+0, writeFn: incrementCounterByTeam, writeParamsObj: {team: 'right'}});
   });
 
   it("setting a debounce option works", async () => {

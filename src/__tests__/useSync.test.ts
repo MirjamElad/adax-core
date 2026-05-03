@@ -1,4 +1,4 @@
-import { trigger, useSync, addRule, removeRule, clearAllRules, kernelStore, KernelStore, Result } from '../index';
+import { trigger, useSync, addRule } from '../index';
 type ColorCounterTuple = {
   counter: number,
   color: 'red' | 'blue'
