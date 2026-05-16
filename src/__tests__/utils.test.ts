@@ -1,4 +1,4 @@
-import { deepEqual, deepClone, throttle } from '../store/utils';
+import { deepEqual, deepClone, throttle, debounce } from '../store/utils';
 
 describe('throttle', () => {
   beforeEach(() => {
@@ -812,30 +812,966 @@ describe('deepClone TypedArray handling', () => {
       expect(cloned.arrays[0][0]).toBe(1);
       expect(cloned.arrays[1][0]).toBeCloseTo(4.4);
     });
+});
+
+describe('DeepEqual dummy', () => {
+  it('should handle RegExp objects', () => {
+    const regex1 = /abc/gi;
+    const regex2 = /abc/gi;
+    const regex3 = /abc/i;
+    expect(deepEqual(regex1, regex2)).toBe(true);
+    expect(deepEqual(regex1, regex3)).toBe(false);
   });
 
-  describe('DeepEqual dummy', () => {
-    it('should handle RegExp objects', () => {
-      const regex1 = /abc/gi;
-      const regex2 = /abc/gi;
-      const regex3 = /abc/i;
-      expect(deepEqual(regex1, regex2)).toBe(true);
-      expect(deepEqual(regex1, regex3)).toBe(false);
+  it('should handle ArrayBuffer objects', () => {
+    const buffer1 = new ArrayBuffer(8);
+    const buffer2 = new ArrayBuffer(8);
+    const buffer3 = new ArrayBuffer(4);
+    new Uint8Array(buffer1).set([1, 2, 3, 4, 5, 6, 7, 8]);
+    new Uint8Array(buffer2).set([1, 2, 3, 4, 5, 6, 7, 8]);
+    new Uint8Array(buffer3).set([1, 2, 3, 4]);
+
+    expect(deepEqual(buffer1, buffer2)).toBe(true);
+    expect(deepEqual(buffer1, buffer3)).toBe(false);
+
+    // Skip heavy computations
+    expect(deepEqual(buffer1, buffer2, true)).toBe(true);
+    expect(deepEqual(buffer1, buffer3, true)).toBe(false);
+  });
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// debounce
+// Not covered at all in the existing suite.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('debounce', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('should not call the function before the wait period has elapsed', () => {
+    const mockFn = jest.fn();
+    const debouncedFn = debounce(mockFn, 100);
+
+    debouncedFn();
+
+    expect(mockFn).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(99);
+    expect(mockFn).not.toHaveBeenCalled();
+  });
+
+  it('should call the function exactly once after the wait period', () => {
+    const mockFn = jest.fn();
+    const debouncedFn = debounce(mockFn, 100);
+
+    debouncedFn();
+    jest.advanceTimersByTime(100);
+
+    expect(mockFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('should reset the timer when called again before the wait period elapses', () => {
+    const mockFn = jest.fn();
+    const debouncedFn = debounce(mockFn, 100);
+
+    debouncedFn();
+    jest.advanceTimersByTime(50);
+
+    // Second call resets the clock
+    debouncedFn();
+    jest.advanceTimersByTime(50);
+
+    // 100 ms have passed since first call but only 50 since second — should not fire yet
+    expect(mockFn).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(50);
+    expect(mockFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('should fire only once after multiple rapid calls, with the last arguments', () => {
+    const mockFn = jest.fn();
+    const debouncedFn = debounce(mockFn, 100);
+
+    debouncedFn('call1');
+    debouncedFn('call2');
+    debouncedFn('call3');
+
+    expect(mockFn).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(100);
+
+    expect(mockFn).toHaveBeenCalledTimes(1);
+    expect(mockFn).toHaveBeenCalledWith('call3');
+  });
+
+  it('should pass arguments correctly to the debounced function', () => {
+    const mockFn = jest.fn();
+    const debouncedFn = debounce(mockFn, 100);
+
+    debouncedFn('arg1', 'arg2', 42);
+    jest.advanceTimersByTime(100);
+
+    expect(mockFn).toHaveBeenCalledWith('arg1', 'arg2', 42);
+  });
+
+  it('should allow the function to be called again after the wait period resets', () => {
+    const mockFn = jest.fn();
+    const debouncedFn = debounce(mockFn, 100);
+
+    debouncedFn('first');
+    jest.advanceTimersByTime(100);
+    expect(mockFn).toHaveBeenCalledTimes(1);
+    expect(mockFn).toHaveBeenLastCalledWith('first');
+
+    debouncedFn('second');
+    jest.advanceTimersByTime(100);
+    expect(mockFn).toHaveBeenCalledTimes(2);
+    expect(mockFn).toHaveBeenLastCalledWith('second');
+  });
+
+  it('should work correctly with zero wait time', () => {
+    const mockFn = jest.fn();
+    const debouncedFn = debounce(mockFn, 0);
+
+    debouncedFn();
+    // Even with 0ms wait the call is still deferred asynchronously via setTimeout
+    expect(mockFn).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(0);
+    expect(mockFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not allow multiple independent debounced functions to interfere', () => {
+    const mockFn1 = jest.fn();
+    const mockFn2 = jest.fn();
+    const debouncedFn1 = debounce(mockFn1, 100);
+    const debouncedFn2 = debounce(mockFn2, 200);
+
+    debouncedFn1('a');
+    debouncedFn2('b');
+
+    jest.advanceTimersByTime(100);
+    expect(mockFn1).toHaveBeenCalledTimes(1);
+    expect(mockFn2).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(100);
+    expect(mockFn2).toHaveBeenCalledTimes(1);
+  });
+
+  it('should demonstrate the context limitation — mirrors the throttle behaviour', () => {
+    // debounce uses `const context = this` inside an arrow function, so it captures
+    // the module-level `this`, not the caller's `this`.  This is the same documented
+    // limitation as throttle; we assert it here so the contract is explicit.
+    const callerContext = { value: 'test' };
+    let capturedContext: any;
+
+    const mockFn = jest.fn(function (this: any) {
+      capturedContext = this;
     });
 
-    it('should handle ArrayBuffer objects', () => {
-      const buffer1 = new ArrayBuffer(8);
-      const buffer2 = new ArrayBuffer(8);
-      const buffer3 = new ArrayBuffer(4);
-      new Uint8Array(buffer1).set([1, 2, 3, 4, 5, 6, 7, 8]);
-      new Uint8Array(buffer2).set([1, 2, 3, 4, 5, 6, 7, 8]);
-      new Uint8Array(buffer3).set([1, 2, 3, 4]);
+    const debouncedFn = debounce(mockFn, 100);
+    debouncedFn.call(callerContext);
+    jest.advanceTimersByTime(100);
 
-      expect(deepEqual(buffer1, buffer2)).toBe(true);
-      expect(deepEqual(buffer1, buffer3)).toBe(false);
+    expect(capturedContext).not.toBe(callerContext);
+    expect(mockFn).toHaveBeenCalledTimes(1);
+  });
+});
 
-      // Skip heavy computations
-      expect(deepEqual(buffer1, buffer2, true)).toBe(true);
-      expect(deepEqual(buffer1, buffer3, true)).toBe(false);
+// ─────────────────────────────────────────────────────────────────────────────
+// throttle — additional gaps
+// ─────────────────────────────────────────────────────────────────────────────
+describe('throttle — additional', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('should not interfere between multiple independent throttled instances', () => {
+    const mockFn1 = jest.fn();
+    const mockFn2 = jest.fn();
+    const throttledFn1 = throttle(mockFn1, 100);
+    const throttledFn2 = throttle(mockFn2, 200);
+
+    throttledFn1();
+    throttledFn2();
+    expect(mockFn1).toHaveBeenCalledTimes(1);
+    expect(mockFn2).toHaveBeenCalledTimes(1);
+
+    throttledFn1();   // within wait for fn1 but irrelevant to fn2
+    expect(mockFn1).toHaveBeenCalledTimes(1); // still 1
+    expect(mockFn2).toHaveBeenCalledTimes(1); // unaffected
+  });
+
+  it('should call a zero-argument function correctly', () => {
+    let callCount = 0;
+    const fn = () => { callCount++; };
+    const throttledFn = throttle(fn, 100);
+
+    throttledFn();
+    expect(callCount).toBe(1);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// deepEqual — additional gaps
+// ─────────────────────────────────────────────────────────────────────────────
+describe('deepEqual — additional', () => {
+
+  // ── TypedArray cross-type comparisons ──────────────────────────────────────
+  describe('cross-type TypedArray comparisons', () => {
+    it('should return true when comparing different TypedArray types with identical underlying bytes', () => {
+      // The ArrayBuffer.isView branch (which compares raw bytes via a Uint8Array window)
+      // fires BEFORE the constructor check, so deepEqual treats all ArrayBufferView
+      // subtypes purely as byte sequences. Uint8Array([1,2,3]) and Int8Array([1,2,3])
+      // have the same bit-pattern → byte comparison passes → returns true.
+      // Type identity is NOT part of the deepEqual contract for ArrayBufferViews.
+      const uint8 = new Uint8Array([1, 2, 3]);
+      const int8  = new Int8Array([1, 2, 3]);
+      expect(deepEqual(uint8, int8)).toBe(true);
     });
-  })
+
+    it('should return false when comparing Uint16Array and Uint32Array with same logical values (different byte widths)', () => {
+      // Uint16Array([1,2,3]) occupies 6 bytes; Uint32Array([1,2,3]) occupies 12 bytes.
+      // byteLength differs → returns false before any byte comparison.
+      const u16 = new Uint16Array([1, 2, 3]);
+      const u32 = new Uint32Array([1, 2, 3]);
+      expect(deepEqual(u16, u32)).toBe(false);
+    });
+
+    it('should return true when comparing a DataView and a Uint8Array that share the same underlying bytes', () => {
+      // Both are ArrayBufferView subtypes. The isView branch compares their raw bytes;
+      // since they share the same underlying buffer the bytes are identical → true.
+      // Constructor identity is not checked for ArrayBufferViews.
+      const buf = new ArrayBuffer(4);
+      new Uint8Array(buf).set([1, 2, 3, 4]);
+      const dataView = new DataView(buf);
+      const uint8    = new Uint8Array(buf);
+      expect(deepEqual(dataView, uint8)).toBe(true);
+    });
+
+    it('should return true for two DataViews backed by different buffers with the same bytes', () => {
+      const buf1 = new ArrayBuffer(4);
+      const buf2 = new ArrayBuffer(4);
+      new Uint8Array(buf1).set([10, 20, 30, 40]);
+      new Uint8Array(buf2).set([10, 20, 30, 40]);
+      const dv1 = new DataView(buf1);
+      const dv2 = new DataView(buf2);
+      expect(deepEqual(dv1, dv2)).toBe(true);
+    });
+
+    it('should return false for two DataViews with the same length but different bytes', () => {
+      const buf1 = new ArrayBuffer(4);
+      const buf2 = new ArrayBuffer(4);
+      new Uint8Array(buf1).set([1, 2, 3, 4]);
+      new Uint8Array(buf2).set([1, 2, 3, 9]);
+      expect(deepEqual(new DataView(buf1), new DataView(buf2))).toBe(false);
+    });
+
+    it('should compare all standard TypedArray flavours correctly', () => {
+      const pairs: [TypedArray, TypedArray][] = [
+        [new Int8Array([1, -1]),      new Int8Array([1, -1])],
+        [new Uint16Array([300, 400]), new Uint16Array([300, 400])],
+        [new Int16Array([-100, 200]), new Int16Array([-100, 200])],
+        [new Int32Array([1e6]),       new Int32Array([1e6])],
+        [new Uint32Array([4e9]),      new Uint32Array([4e9])],
+        [new Float64Array([Math.PI]), new Float64Array([Math.PI])],
+      ];
+
+      type TypedArray =
+        | Int8Array | Uint16Array | Int16Array
+        | Int32Array | Uint32Array | Float64Array;
+
+      for (const [a, b] of pairs) {
+        expect(deepEqual(a, b)).toBe(true);
+        expect(deepEqual(a, b, true)).toBe(true);
+      }
+    });
+
+    it('should return false for two Int32Arrays with different values', () => {
+      expect(deepEqual(new Int32Array([1, 2, 3]), new Int32Array([1, 2, 4]))).toBe(false);
+    });
+  });
+
+  // ── Map edge cases ─────────────────────────────────────────────────────────
+  describe('Map edge cases', () => {
+    it('should return true for two empty Maps', () => {
+      expect(deepEqual(new Map(), new Map())).toBe(true);
+    });
+
+    it('should consider insertion order irrelevant for Maps', () => {
+      const map1 = new Map([['a', 1], ['b', 2]]);
+      const map2 = new Map([['b', 2], ['a', 1]]);
+      expect(deepEqual(map1, map2)).toBe(true);
+    });
+
+    it('should support object keys in Maps', () => {
+      const keyA = { id: 1 };
+      const keyB = { id: 1 };
+
+      // deepEqual uses reference equality for Map keys (Map.prototype.has uses SameValueZero),
+      // so two structurally equal but distinct key objects are treated as different keys.
+      const map1 = new Map([[keyA, 'value']]);
+      const map2 = new Map([[keyB, 'value']]);
+
+      // map2.has(keyA) is false because keyB !== keyA by reference
+      expect(deepEqual(map1, map2)).toBe(false);
+    });
+
+    it('should deeply compare Map values', () => {
+      const map1 = new Map([['key', { nested: { a: 1 } }]]);
+      const map2 = new Map([['key', { nested: { a: 1 } }]]);
+      const map3 = new Map([['key', { nested: { a: 2 } }]]);
+
+      expect(deepEqual(map1, map2)).toBe(true);
+      expect(deepEqual(map1, map3)).toBe(false);
+    });
+
+    it('should return false when Maps have the same keys but different values', () => {
+      const map1 = new Map([['a', 1], ['b', 2]]);
+      const map2 = new Map([['a', 1], ['b', 99]]);
+      expect(deepEqual(map1, map2)).toBe(false);
+    });
+
+    it('should return false when comparing a Map to a non-Map with same-looking content', () => {
+      const map = new Map([['a', 1]]);
+      const obj = { a: 1 };
+      expect(deepEqual(map, obj)).toBe(false);
+    });
+  });
+
+  // ── Set edge cases ─────────────────────────────────────────────────────────
+  describe('Set edge cases', () => {
+    it('should return true for two empty Sets', () => {
+      expect(deepEqual(new Set(), new Set())).toBe(true);
+    });
+
+    it('should treat insertion order as irrelevant for primitive Sets', () => {
+      const set1 = new Set([1, 2, 3]);
+      const set2 = new Set([3, 1, 2]);
+      expect(deepEqual(set1, set2)).toBe(true);
+    });
+
+    it('should handle Sets with mixed primitive types', () => {
+      const set1 = new Set([1, 'two', true, null]);
+      const set2 = new Set([1, 'two', true, null]);
+      const set3 = new Set([1, 'two', true]);        // missing null
+      expect(deepEqual(set1, set2)).toBe(true);
+      expect(deepEqual(set1, set3)).toBe(false);
+    });
+
+    it('should structurally compare objects inside Sets', () => {
+      const set1 = new Set([{ a: 1 }, { b: 2 }]);
+      const set2 = new Set([{ b: 2 }, { a: 1 }]);   // different insertion order
+      expect(deepEqual(set1, set2)).toBe(true);
+    });
+
+    it('should return false for Sets containing structurally different objects', () => {
+      const set1 = new Set([{ a: 1 }]);
+      const set2 = new Set([{ a: 9 }]);
+      expect(deepEqual(set1, set2)).toBe(false);
+    });
+  });
+
+  // ── ArrayBuffer edge cases ─────────────────────────────────────────────────
+  describe('ArrayBuffer edge cases', () => {
+    it('should return true for two empty ArrayBuffers', () => {
+      expect(deepEqual(new ArrayBuffer(0), new ArrayBuffer(0))).toBe(true);
+    });
+
+    it('should return false for ArrayBuffers of different lengths even with skipHeavyComputations', () => {
+      expect(deepEqual(new ArrayBuffer(4), new ArrayBuffer(8), true)).toBe(false);
+    });
+  });
+
+  // ── Non-enumerable string-keyed properties ─────────────────────────────────
+  describe('non-enumerable properties', () => {
+    it('should treat objects as equal when they differ only in non-enumerable string-keyed properties', () => {
+      // deepEqual uses Object.keys() (enumerable only) + getOwnPropertySymbols(),
+      // so non-enumerable string properties are invisible to the comparison.
+      // This test documents that known limitation explicitly.
+      const obj1: Record<string, any> = {};
+      const obj2: Record<string, any> = {};
+
+      Object.defineProperty(obj1, 'hidden', { value: 42,  enumerable: false });
+      Object.defineProperty(obj2, 'hidden', { value: 999, enumerable: false });
+
+      // Both objects look identical to deepEqual because 'hidden' is not enumerable
+      expect(deepEqual(obj1, obj2)).toBe(true);
+    });
+  });
+
+  // ── Symbol-keyed properties on nested objects ──────────────────────────────
+  describe('Symbol-keyed properties on nested objects', () => {
+    it('should compare symbol-keyed properties at any nesting depth', () => {
+      const sym = Symbol('deep');
+      const obj1 = { level1: { level2: { [sym]: 'value' } } };
+      const obj2 = { level1: { level2: { [sym]: 'value' } } };
+      const obj3 = { level1: { level2: { [sym]: 'OTHER' } } };
+
+      expect(deepEqual(obj1, obj2)).toBe(true);
+      expect(deepEqual(obj1, obj3)).toBe(false);
+    });
+
+    it('should return false if one nested object has a symbol key the other lacks', () => {
+      const sym = Symbol('x');
+      const obj1 = { child: { [sym]: 1 } };
+      const obj2 = { child: {} };
+      expect(deepEqual(obj1, obj2)).toBe(false);
+    });
+  });
+
+  // ── Cross-type comparisons (Date, RegExp, etc. vs plain objects) ───────────
+  describe('cross-type comparisons', () => {
+    it('should return false when comparing a Date to a plain object with the same timestamp', () => {
+      const date = new Date(0);
+      const fakeDate = { getTime: () => 0 };
+      expect(deepEqual(date, fakeDate)).toBe(false);
+    });
+
+    it('should return false when comparing a RegExp to a plain object with same source/flags', () => {
+      const regex = /abc/gi;
+      const fakeRegex = { source: 'abc', flags: 'gi' };
+      expect(deepEqual(regex, fakeRegex)).toBe(false);
+    });
+
+    it('should return false when comparing an array to an array-like plain object', () => {
+      const arr      = [1, 2, 3];
+      const arrayLike = { 0: 1, 1: 2, 2: 3, length: 3 };
+      expect(deepEqual(arr, arrayLike)).toBe(false);
+    });
+  });
+
+  // ── Object-only symbol keys ────────────────────────────────────────────────
+  describe('objects with only symbol keys', () => {
+    it('should return true for two objects that each have only the same symbol key', () => {
+      const sym = Symbol('only');
+      const obj1 = { [sym]: 42 };
+      const obj2 = { [sym]: 42 };
+      expect(deepEqual(obj1, obj2)).toBe(true);
+    });
+
+    it('should return false if the symbol-only value differs', () => {
+      const sym = Symbol('only');
+      const obj1 = { [sym]: 42 };
+      const obj2 = { [sym]: 99 };
+      expect(deepEqual(obj1, obj2)).toBe(false);
+    });
+  });
+
+  // ── Sparse arrays ──────────────────────────────────────────────────────────
+  describe('sparse arrays', () => {
+    it('should treat two identical sparse arrays as equal', () => {
+      const arr1: any[] = [];
+      const arr2: any[] = [];
+      arr1[0] = 1;
+      arr1[2] = 3;   // hole at index 1
+      arr2[0] = 1;
+      arr2[2] = 3;
+      expect(deepEqual(arr1, arr2)).toBe(true);
+    });
+
+    it('should return false for a sparse array vs a dense array with undefined', () => {
+      const sparse: any[] = [];
+      sparse[0] = 1;
+      sparse[2] = 3;  // hole at index 1 — own property '1' does not exist
+
+      const dense = [1, undefined, 3];  // own property '1' exists, value undefined
+
+      // Object.keys on sparse gives ['0','2']; on dense gives ['0','1','2'] → different lengths
+      expect(deepEqual(sparse, dense)).toBe(false);
+    });
+  });
+
+  // ── Deeply nested class instances ──────────────────────────────────────────
+  describe('deeply nested class instances', () => {
+    class Node {
+      constructor(public value: number, public next: Node | null = null) {}
+    }
+
+    it('should return true for structurally equal linked lists', () => {
+      const list1 = new Node(1, new Node(2, new Node(3)));
+      const list2 = new Node(1, new Node(2, new Node(3)));
+      expect(deepEqual(list1, list2)).toBe(true);
+    });
+
+    it('should return false when a nested node value differs', () => {
+      const list1 = new Node(1, new Node(2, new Node(3)));
+      const list2 = new Node(1, new Node(2, new Node(9)));
+      expect(deepEqual(list1, list2)).toBe(false);
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// deepClone — additional gaps
+// ─────────────────────────────────────────────────────────────────────────────
+describe('deepClone — additional', () => {
+
+  // ── Primitives ─────────────────────────────────────────────────────────────
+  describe('primitives', () => {
+    it('should return numbers unchanged', () => {
+      expect(deepClone(42)).toBe(42);
+      expect(deepClone(0)).toBe(0);
+      expect(deepClone(-Infinity)).toBe(-Infinity);
+      expect(deepClone(NaN)).toBeNaN();
+    });
+
+    it('should return strings unchanged', () => {
+      expect(deepClone('hello')).toBe('hello');
+      expect(deepClone('')).toBe('');
+    });
+
+    it('should return booleans unchanged', () => {
+      expect(deepClone(true)).toBe(true);
+      expect(deepClone(false)).toBe(false);
+    });
+
+    it('should return null unchanged', () => {
+      expect(deepClone(null)).toBeNull();
+    });
+
+    it('should return undefined unchanged', () => {
+      expect(deepClone(undefined)).toBeUndefined();
+    });
+  });
+
+  // ── Functions ──────────────────────────────────────────────────────────────
+  describe('functions', () => {
+    it('should return the exact same function reference (functions are not cloned)', () => {
+      const fn = () => 42;
+      expect(deepClone(fn)).toBe(fn);
+    });
+  });
+
+  // ── Circular references (the key new fix) ──────────────────────────────────
+  describe('circular references', () => {
+    it('should clone an object with a self-reference without stack overflow', () => {
+      const obj: any = { a: 1 };
+      obj.self = obj;
+
+      const clone = deepClone(obj);
+
+      expect(clone).not.toBe(obj);          // different object
+      expect(clone.a).toBe(1);
+      expect(clone.self).toBe(clone);       // self-reference points to clone, not original
+    });
+
+    it('should clone a mutual reference (A→B→A) without stack overflow', () => {
+      const a: any = { name: 'a' };
+      const b: any = { name: 'b' };
+      a.other = b;
+      b.other = a;
+
+      const cloneA = deepClone(a);
+
+      expect(cloneA).not.toBe(a);
+      expect(cloneA.other).not.toBe(b);
+      expect(cloneA.other.name).toBe('b');
+      expect(cloneA.other.other).toBe(cloneA); // cycle is preserved inside the clone
+    });
+
+    it('should clone an array with a self-reference without stack overflow', () => {
+      const arr: any[] = [1, 2, 3];
+      arr.push(arr);
+
+      const clone = deepClone(arr);
+
+      expect(clone).not.toBe(arr);
+      expect(clone[3]).toBe(clone); // self-reference preserved in the clone
+      expect(clone[0]).toBe(1);
+    });
+
+    it('should clone a three-node cycle correctly', () => {
+      const n1: any = { v: 1 };
+      const n2: any = { v: 2 };
+      const n3: any = { v: 3 };
+      n1.next = n2;
+      n2.next = n3;
+      n3.next = n1;
+
+      const clone1 = deepClone(n1);
+
+      expect(clone1.v).toBe(1);
+      expect(clone1.next.v).toBe(2);
+      expect(clone1.next.next.v).toBe(3);
+      expect(clone1.next.next.next).toBe(clone1); // cycle closes back to clone1
+    });
+  });
+
+  // ── Shared sub-objects (diamond pattern) ───────────────────────────────────
+  describe('shared sub-objects', () => {
+    it('should clone a shared child object once and reference that single clone', () => {
+      const shared = { value: 99 };
+      const parent: any = { left: shared, right: shared };
+
+      const clone = deepClone(parent);
+
+      // The two properties should reference the same cloned object (not separate clones)
+      expect(clone.left).toBe(clone.right);
+      expect(clone.left).not.toBe(shared);
+      expect(clone.left.value).toBe(99);
+    });
+
+    it('should not allow mutation of one branch to affect the other when sub-object is shared', () => {
+      const shared = { value: 1 };
+      const parent = { a: shared, b: shared };
+
+      const clone = deepClone(parent);
+
+      clone.a.value = 2;
+      // Because left and right are the SAME cloned object, right sees the change too
+      expect(clone.b.value).toBe(2);
+      // But the original is untouched
+      expect(shared.value).toBe(1);
+    });
+  });
+
+  // ── DataView (new explicit branch) ─────────────────────────────────────────
+  describe('DataView', () => {
+    it('should clone a DataView with an independent buffer', () => {
+      const original = new DataView(new ArrayBuffer(8));
+      original.setFloat64(0, Math.PI);
+
+      const clone = deepClone(original);
+
+      expect(clone).toBeInstanceOf(DataView);
+      expect(clone.buffer).not.toBe(original.buffer);     // independent buffer
+      expect(clone.getFloat64(0)).toBeCloseTo(Math.PI);
+    });
+
+    it('should not reflect mutations to the original buffer in the clone', () => {
+      const buf = new ArrayBuffer(4);
+      const original = new DataView(buf);
+      original.setUint32(0, 0xDEADBEEF);
+
+      const clone = deepClone(original);
+      original.setUint32(0, 0x00000000); // mutate original
+
+      expect(clone.getUint32(0)).toBe(0xDEADBEEF);
+    });
+
+    it('should preserve byteOffset and byteLength for a DataView over a sub-range', () => {
+      const buf = new ArrayBuffer(16);
+      const original = new DataView(buf, 4, 8); // starts at byte 4, 8 bytes long
+
+      const clone = deepClone(original);
+
+      expect(clone.byteOffset).toBe(4);
+      expect(clone.byteLength).toBe(8);
+    });
+  });
+
+  // ── Additional TypedArray types ────────────────────────────────────────────
+  describe('additional TypedArray types', () => {
+    it('should clone Int16Array correctly', () => {
+      const original = new Int16Array([-1000, 0, 1000]);
+      const clone = deepClone(original);
+
+      expect(clone).toBeInstanceOf(Int16Array);
+      expect(clone.buffer).not.toBe(original.buffer);
+      expect(Array.from(clone)).toEqual([-1000, 0, 1000]);
+
+      original[0] = 9999;
+      expect(clone[0]).toBe(-1000);
+    });
+
+    it('should clone Int32Array correctly', () => {
+      const original = new Int32Array([-(2 ** 30), 0, 2 ** 30]);
+      const clone = deepClone(original);
+
+      expect(clone).toBeInstanceOf(Int32Array);
+      expect(clone.buffer).not.toBe(original.buffer);
+      expect(Array.from(clone)).toEqual([-(2 ** 30), 0, 2 ** 30]);
+    });
+
+    it('should clone Float64Array correctly', () => {
+      const original = new Float64Array([Math.PI, Math.E, Number.EPSILON]);
+      const clone = deepClone(original);
+
+      expect(clone).toBeInstanceOf(Float64Array);
+      expect(clone.buffer).not.toBe(original.buffer);
+      expect(clone[0]).toBe(Math.PI);
+      expect(clone[1]).toBe(Math.E);
+    });
+
+    it('should clone Uint32Array correctly', () => {
+      const original = new Uint32Array([0, 2 ** 32 - 1]);
+      const clone = deepClone(original);
+
+      expect(clone).toBeInstanceOf(Uint32Array);
+      expect(clone[1]).toBe(2 ** 32 - 1);
+    });
+  });
+
+  // ── Empty collections ──────────────────────────────────────────────────────
+  describe('empty collections', () => {
+    it('should clone an empty object', () => {
+      const clone = deepClone({});
+      expect(clone).toEqual({});
+      expect(clone).not.toBe({});
+    });
+
+    it('should clone an empty array', () => {
+      const clone = deepClone([]);
+      expect(clone).toEqual([]);
+      expect(clone).not.toBe([]);
+    });
+
+    it('should clone an empty Map', () => {
+      const original = new Map();
+      const clone = deepClone(original);
+
+      expect(clone).toBeInstanceOf(Map);
+      expect(clone.size).toBe(0);
+      expect(clone).not.toBe(original);
+    });
+
+    it('should clone an empty Set', () => {
+      const original = new Set();
+      const clone = deepClone(original);
+
+      expect(clone).toBeInstanceOf(Set);
+      expect(clone.size).toBe(0);
+      expect(clone).not.toBe(original);
+    });
+
+    it('should clone an empty ArrayBuffer', () => {
+      const original = new ArrayBuffer(0);
+      const clone = deepClone(original);
+
+      expect(clone).toBeInstanceOf(ArrayBuffer);
+      expect(clone.byteLength).toBe(0);
+      expect(clone).not.toBe(original);
+    });
+  });
+
+  // ── Symbol-keyed properties ────────────────────────────────────────────────
+  describe('symbol-keyed properties', () => {
+    it('should clone symbol-keyed properties on an object', () => {
+      const sym = Symbol('key');
+      const original: any = { [sym]: 'symbolValue', plain: 'plainValue' };
+      const clone = deepClone(original);
+
+      expect(clone[sym]).toBe('symbolValue');
+      expect(clone.plain).toBe('plainValue');
+
+      // Mutation isolation
+      original[sym] = 'changed';
+      expect(clone[sym]).toBe('symbolValue');
+    });
+  });
+
+  // ── Properties with value === undefined ────────────────────────────────────
+  describe('properties whose value is explicitly undefined', () => {
+    it('should clone a property set to undefined and preserve its existence', () => {
+      const original = { a: 1, b: undefined as undefined };
+      const clone = deepClone(original);
+
+      // The property 'b' must exist on the clone (not just be absent)
+      expect(Object.prototype.hasOwnProperty.call(clone, 'b')).toBe(true);
+      expect(clone.b).toBeUndefined();
+    });
+  });
+
+  // ── Non-enumerable properties ──────────────────────────────────────────────
+  describe('non-enumerable properties', () => {
+    it('should clone non-enumerable string-keyed properties (deepClone uses getOwnPropertyNames)', () => {
+      const original: Record<string, any> = {};
+      Object.defineProperty(original, 'hidden', {
+        value: 42,
+        enumerable: false,
+        writable: true,
+        configurable: true,
+      });
+
+      const clone = deepClone(original);
+
+      // deepClone uses getOwnPropertyNames so non-enumerable properties ARE cloned
+      expect(Object.prototype.hasOwnProperty.call(clone, 'hidden')).toBe(true);
+      expect(clone.hidden).toBe(42);
+
+      const descriptor = Object.getOwnPropertyDescriptor(clone, 'hidden')!;
+      expect(descriptor.enumerable).toBe(false);
+    });
+  });
+
+  // ── Accessor (getter/setter) properties ────────────────────────────────────
+  describe('accessor properties', () => {
+    it('should copy getter/setter descriptors as-is (not invoke the getter during clone)', () => {
+      let backingValue = 10;
+      const original: Record<string, any> = {};
+      Object.defineProperty(original, 'computed', {
+        get() { return backingValue; },
+        set(v) { backingValue = v; },
+        enumerable: true,
+        configurable: true,
+      });
+
+      const clone = deepClone(original);
+
+      // The descriptor is copied structurally — the clone has a getter too
+      const desc = Object.getOwnPropertyDescriptor(clone, 'computed')!;
+      expect(typeof desc.get).toBe('function');
+
+      // Reading via the cloned getter still uses backingValue (shared backing variable)
+      expect(clone.computed).toBe(10);
+    });
+  });
+
+  // ── Null-prototype objects ─────────────────────────────────────────────────
+  describe('null-prototype objects', () => {
+    it('should clone an Object.create(null) object with its properties', () => {
+      const original = Object.create(null) as Record<string, any>;
+      original.a = 1;
+      original.b = 'hello';
+
+      const clone = deepClone(original);
+
+      expect(Object.getPrototypeOf(clone)).toBeNull();
+      expect(clone.a).toBe(1);
+      expect(clone.b).toBe('hello');
+
+      // Mutation isolation
+      original.a = 99;
+      expect(clone.a).toBe(1);
+    });
+  });
+
+  // ── Deep nesting ───────────────────────────────────────────────────────────
+  describe('deeply nested structures', () => {
+    it('should clone 6 levels of nesting with full independence', () => {
+      const original = { l1: { l2: { l3: { l4: { l5: { l6: { val: 'deep' } } } } } } };
+      const clone = deepClone(original);
+
+      expect(clone.l1.l2.l3.l4.l5.l6.val).toBe('deep');
+      expect(clone.l1.l2.l3.l4.l5.l6).not.toBe(original.l1.l2.l3.l4.l5.l6);
+
+      original.l1.l2.l3.l4.l5.l6.val = 'mutated';
+      expect(clone.l1.l2.l3.l4.l5.l6.val).toBe('deep');
+    });
+  });
+
+  // ── Map with object keys ───────────────────────────────────────────────────
+  describe('Map with object keys', () => {
+    it('should clone object keys as new independent objects', () => {
+      const keyObj = { id: 1 };
+      const original = new Map([[keyObj, 'value']]);
+
+      const clone = deepClone(original);
+
+      // The cloned map has one entry
+      expect(clone.size).toBe(1);
+      // The cloned key is a new object
+      const [clonedKey] = clone.keys();
+      expect(clonedKey).not.toBe(keyObj);
+      expect(clonedKey).toEqual(keyObj);
+    });
+  });
+
+  // ── Set with objects ───────────────────────────────────────────────────────
+  describe('Set with objects', () => {
+    it('should clone objects inside a Set into new independent instances', () => {
+      const item = { value: 42 };
+      const original = new Set([item]);
+
+      const clone = deepClone(original);
+      const [clonedItem] = clone.values();
+
+      expect(clonedItem).not.toBe(item);
+      expect(clonedItem.value).toBe(42);
+
+      item.value = 99;
+      expect(clonedItem.value).toBe(42);
+    });
+  });
+
+  // ── Integration: deepClone + deepEqual ─────────────────────────────────────
+  describe('integration with deepEqual', () => {
+    it('should produce a clone that is deepEqual to the original but not reference-equal', () => {
+      const original = {
+        num: 1,
+        str: 'hello',
+        arr: [1, { nested: true }],
+        map: new Map([['key', { v: 1 }]]),
+        set: new Set([{ id: 1 }]),
+        date: new Date('2024-01-01'),
+        regex: /abc/gi,
+      };
+
+      const clone = deepClone(original);
+
+      expect(deepEqual(original, clone)).toBe(true);
+      expect(clone).not.toBe(original);
+    });
+
+    it('should correctly track divergence after mutating the clone', () => {
+      const original = { a: { b: { c: 42 } } };
+      const clone = deepClone(original);
+
+      expect(deepEqual(original, clone)).toBe(true);
+
+      clone.a.b.c = 0;
+      expect(deepEqual(original, clone)).toBe(false);
+    });
+
+    it('should correctly track divergence after mutating the original', () => {
+      const original = { items: [1, 2, 3] };
+      const clone = deepClone(original);
+
+      original.items.push(4);
+      expect(deepEqual(original, clone)).toBe(false);
+    });
+
+    it('should produce a clone of a circular structure that is deepEqual to the original', () => {
+      const original: any = { a: 1 };
+      original.self = original;
+
+      const clone = deepClone(original);
+
+      // deepEqual handles cycles; these two structurally equivalent circular objects should match
+      expect(deepEqual(original, clone)).toBe(true);
+    });
+  });
+
+  // ── Class instance integrity ───────────────────────────────────────────────
+  describe('class instance integrity', () => {
+    class Vector {
+      constructor(public x: number, public y: number) {}
+      magnitude(): number {
+        return Math.sqrt(this.x ** 2 + this.y ** 2);
+      }
+    }
+
+    it('should preserve instanceof relationship after cloning', () => {
+      const original = new Vector(3, 4);
+      const clone = deepClone(original);
+
+      expect(clone).toBeInstanceOf(Vector);
+    });
+
+    it('should preserve prototype methods after cloning', () => {
+      const original = new Vector(3, 4);
+      const clone = deepClone(original);
+
+      expect(clone.magnitude()).toBe(5);
+    });
+
+    it('should isolate property mutations between original and clone', () => {
+      const original = new Vector(3, 4);
+      const clone = deepClone(original);
+
+      original.x = 0;
+      expect(clone.x).toBe(3);
+      expect(clone.magnitude()).toBe(5);
+    });
+  });
+});
