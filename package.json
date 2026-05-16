@@ -7,7 +7,7 @@
   "description": "adax core",
   "repository": {
     "type": "git",
-    "url": "https://github.com/MirjamElad/adax-core.git"
+    "url": "git+https://github.com/MirjamElad/adax-core.git"
   },
   "files": [
     "dist/**",
