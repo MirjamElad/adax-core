@@ -104,25 +104,42 @@ export const useSync = <FnType extends (x: any) => any>(
   return off;
 };
 
-// DX.ts //////////////////////////////
+// ============================================================================
+// DX.ts – with domain event system (onEmit) and full type safety
+// ============================================================================
 
 export type AnyQueryFn = (params: any, stores?: any) => any;
 
 export interface DxInit {
   readonly dxId: string;
-  [key: string]: unknown; // callers may attach arbitrary domain fields
+  [key: string]: unknown;
 }
 
+// Domain events (user‑land)
+export type NotificationMap = Record<string, unknown>;
+export type DxDomainEvent<T extends NotificationMap> = keyof T & string;
+export type EmitFn<T extends NotificationMap> = <K extends DxDomainEvent<T>>(
+  event: K,
+  payload: T[K]
+) => void;
+
+// Diagnostic events (dx internal)
+export type DxErrorEvent =
+  | "ERROR_dxId_collision"
+  | "ERROR_beforeOn"
+  | "ERROR_onBeforeOnFail"
+  | "ERROR_subscribe"
+  | "ERROR_beforeOff"
+  | "ERROR_run_sync"
+  | "ERROR_run_async";
+
+export type DxWarnEvent =
+  | "WARN_reentrant_run"
+  | "WARN_late_callback";
+
+export type DxEvent = DxErrorEvent | DxWarnEvent;
+
 export type RunContext = {
-  /**
-   * Resets to 0 on every activation. Safe to use for "first run of this
-   * activation" logic (runIndex === 0). Do NOT use for "first run ever"
-   * or cross-activation logic — it resets on every on() call.
-   *
-   * Note: In ephemeral environments (e.g. Cloudflare Durable Objects) the
-   * instance may be reconstructed mid-lifecycle, making any cross-activation
-   * assumption invalid.
-   */
   runIndex:            number;
   executionToken:      number;
   runToken:            number;
@@ -130,49 +147,27 @@ export type RunContext = {
   isActiveExecution:   () => boolean;
 };
 
-export type RunFn<TQueryFn extends AnyQueryFn> = (
-  init: DxInit & Parameters<TQueryFn>[0],
-  result: {
-    data: ReturnType<TQueryFn>;
-    prevData: ReturnType<TQueryFn>;
-    version: number;
-    writeFn?: (x: unknown) => void;
-    writeParamsObj: unknown;
-  },
-  ctx: RunContext
-) => void | Promise<void> | unknown;
+export type QueryResult<TQueryFn extends AnyQueryFn> = {
+  data: ReturnType<TQueryFn>;
+  prevData: ReturnType<TQueryFn>;
+  version: number;
+  writeFn?: (x: unknown) => void;
+  writeParamsObj: unknown;
+};
 
-/**
- * Lifecycle hooks MUST be synchronous. Returning a Promise is a runtime error.
- * Any async work belongs inside `run`, which has full ctx guard infrastructure.
- *
- * Critical: if subscribe() throws after a successful beforeOn(), beforeOff()
- * is never called. Any side effects in beforeOn() must be safe to leave in place.
- */
-export type LifecycleHook = (init: DxInit) => void;
+export type RunFn<
+  TQueryFn extends AnyQueryFn,
+  TInit extends Parameters<TQueryFn>[0] & DxInit,
+  TNotifications extends NotificationMap
+> = (
+  init: TInit,
+  result: QueryResult<TQueryFn>,
+  ctx: RunContext,
+  emit: EmitFn<TNotifications>
+) => void | Promise<void>;
 
-// ─── Notify event types ───────────────────────────────────────────────────────
+export type LifecycleHook<TInit extends DxInit = DxInit> = (init: TInit) => void;
 
-export type DxErrorEvent =
-  | "ERROR_dxId_collision"   // dxId already active in the global registry
-  | "ERROR_beforeOn"         // beforeOn threw or returned a Promise
-  | "ERROR_onBeforeOnFail"   // onBeforeOnFail itself threw
-  | "ERROR_subscribe"        // adax-core subscribe() threw (e.g. debounce+throttle conflict)
-  | "ERROR_beforeOff"        // beforeOff threw or returned a Promise
-  | "ERROR_run_sync"         // run() threw synchronously
-  | "ERROR_run_async";       // run() returned a rejected Promise
-
-export type DxWarnEvent =
-  | "WARN_reentrant_run"     // trigger() called synchronously inside run()
-  | "WARN_late_callback";    // adax-core callback arrived after actualState = "inactive"
-
-export type DxEvent = DxErrorEvent | DxWarnEvent;
-
-/**
- * The subscription shape dx depends on from adax-core.
- * Typed explicitly so any breaking change in adax-core's return type
- * is caught at the assignment site rather than hidden by a cast.
- */
 type Subscription<TResult> = {
   result: {
     data:            TResult;
@@ -185,109 +180,125 @@ type Subscription<TResult> = {
   off: () => void;
 };
 
-export interface DxConfig<TQueryFn extends AnyQueryFn> {
-  // 1. Forces init to include dxId AND the exact params queryFn expects
-  init:            DxInit & Parameters<TQueryFn>[0];
+// Conditional event narrowing (kept from original)
+type EventsForConfig<TConfig extends HookShape> =
+  | "ERROR_dxId_collision"
+  | "ERROR_subscribe"
+  | "ERROR_run_sync"
+  | "ERROR_run_async"
+  | "WARN_reentrant_run"
+  | "WARN_late_callback"
+  | (TConfig extends { beforeOn: LifecycleHook }
+      ? "ERROR_beforeOn" | "ERROR_onBeforeOnFail"
+      : never)
+  | (TConfig extends { beforeOff: LifecycleHook }
+      ? "ERROR_beforeOff"
+      : never);
 
-  // 2. The source of truth for all types
+type ErrorPayload = { error: unknown; componentId: string };
+type WarnReentrantPayload = { componentId: string };
+type WarnLateCallbackPayload = { componentId: string; totalDropped: number };
+
+type NotifyPayload<TEvent extends DxEvent> =
+  TEvent extends `ERROR_${string}`      ? ErrorPayload           :
+  TEvent extends "WARN_reentrant_run"   ? WarnReentrantPayload   :
+  TEvent extends "WARN_late_callback"   ? WarnLateCallbackPayload :
+  never;
+
+export interface DxConfig<
+  TQueryFn extends AnyQueryFn,
+  TInit extends Parameters<TQueryFn>[0] & DxInit,
+  TNotifications extends NotificationMap = NotificationMap
+> {
+  init:            TInit;
   queryFn:         TQueryFn;
-
-  // 3. run is automatically typed to the exact return type of queryFn
-  run:             RunFn<TQueryFn>;
-
-  notify:          (event: DxEvent, payload: unknown) => void;
-  beforeOn?:       LifecycleHook;
-  beforeOff?:      LifecycleHook;
-  onBeforeOnFail?: LifecycleHook;
-  queryOptions?:   QueryOptions;
-
-  // ONLY the adax-core kernel configuration goes here.
-  // Domain stores belong in your queryFn/writeFn default params!
-  stores?: { kernel: KernelStore };
+  run:             RunFn<TQueryFn, TInit, TNotifications>;
+  notify:          <TEvent extends DxEvent>(event: TEvent, payload: NotifyPayload<TEvent>) => void;
+  onEmit:          EmitFn<TNotifications>;   // required – explicit domain event wiring
+  beforeOn?:       LifecycleHook<TInit>;
+  beforeOff?:      LifecycleHook<TInit>;
+  onBeforeOnFail?: LifecycleHook<TInit>;
+  queryOptions?:   QueryOptions;              // non‑generic, matches adax-core
+  stores?:         { kernel: KernelStore };
   __dev__?:        boolean;
 }
 
-// ─── DEV mode resolution ──────────────────────────────────────────────────────
+// HookShape for conditional event derivation
+type HookShape = {
+  beforeOn?:  (...args: never[]) => unknown;
+  beforeOff?: (...args: never[]) => unknown;
+};
 
 const resolveDev = (override?: boolean): boolean => {
   if (typeof override === "boolean") return override;
-  if (
-    typeof process !== "undefined" &&
-    process.env != null &&
-    process.env.NODE_ENV != null
-  ) {
+  if (typeof process !== "undefined" && process.env?.NODE_ENV) {
     return process.env.NODE_ENV === "development";
   }
-  // Defaults to false in all non-Node environments (browser, Durable Objects, etc.)
-  // Pass __dev__: true explicitly to enable DEV mode in those environments.
   return false;
 };
 
-// ─── Global active dxId registry ─────────────────────────────────────────────
-//
-// Tracks dxIds of currently active instances. Two instances with the same dxId
-// cannot be active simultaneously — they would collide in adax-core's subscription
-// Map (keyed by cmpId = dxId), with the second silently overwriting the first.
-//
-// The check covers concurrent activation only. Two inactive instances sharing a
-// dxId are fine until one tries to activate while the other is already active.
-
 const activeDxIds = new Set<string>();
-
-// ─── Shared defaults (avoid per-call allocations) ─────────────────────────────
 const EMPTY_OPTIONS: QueryOptions = {};
 const NOOP_HOOK: LifecycleHook = () => {};
 
-// ─── dx ───────────────────────────────────────────────────────────────────────
-export function dx<TQueryFn extends AnyQueryFn>(
-  {
+export function dx<
+  TQueryFn extends AnyQueryFn,
+  TInit extends Parameters<TQueryFn>[0] & DxInit,
+  TNotifications extends NotificationMap,
+  TConfig extends HookShape
+>(
+  config: DxConfig<TQueryFn, TInit, TNotifications> & TConfig & {
+    notify: <TEvent extends EventsForConfig<TConfig>>(
+      event: TEvent,
+      payload: NotifyPayload<TEvent>
+    ) => void;
+  }
+): { claim: () => { on: () => void; off: () => void } } {
+
+  const {
     init,
     queryFn,
     run,
     notify,
-    beforeOn  = NOOP_HOOK,
+    onEmit,
+    beforeOn = NOOP_HOOK,
     beforeOff = NOOP_HOOK,
     onBeforeOnFail,
     queryOptions = EMPTY_OPTIONS,
     stores,
     __dev__,
-  }: DxConfig<TQueryFn>
-): { claim: () => { on: () => void; off: () => void } } {
+  } = config as DxConfig<TQueryFn, TInit, TNotifications> & TConfig & {
+    notify: (event: DxEvent, payload: unknown) => void;
+    onBeforeOnFail?: LifecycleHook<TInit>;
+    queryOptions?: QueryOptions;
+    stores?: { kernel: KernelStore };
+    __dev__?: boolean;
+  };
 
   const DEV = resolveDev(__dev__);
+  const emit = onEmit; // domain event emitter
 
-  // ── Ownership guard ───────────────────────────────────────────────────────
   let claimed = false;
+  let desiredState: "active" | "inactive" = "inactive";
+  let actualState: "active" | "inactive" = "inactive";
+  let transitioning = false;
 
-  // ── Coalesced lifecycle state ─────────────────────────────────────────────
-  type State = "inactive" | "active";
-
-  let desiredState:  State = "inactive";
-  let actualState:   State = "inactive";
-  let transitioning        = false;
-
-  // ── Token counters ────────────────────────────────────────────────────────
-  let executionToken          = 0;
-  let currentRunToken         = 0;
+  let executionToken = 0;
+  let currentRunToken = 0;
   let runIndexSinceActivation = 0;
 
   let sub: Subscription<ReturnType<TQueryFn>> | null = null;
-
-  // DEV-only
-  let isRunning       = false;
+  let isRunning = false;
   let droppedRunCount = 0;
 
-  // ── invokeRun ─────────────────────────────────────────────────────────────
   const invokeRun = (result: Subscription<ReturnType<TQueryFn>>["result"]): void => {
     if (actualState !== "active") {
       if (DEV) {
         droppedRunCount++;
         if (droppedRunCount === 1 || droppedRunCount % 100 === 0) {
-          const msg =
-            `[dx] Late callback discarded after deactivation ` +
-            `(total: ${droppedRunCount}) for component "${init.dxId}". ` +
-            `This may indicate a race condition.`;
-          console.warn(msg);
+          console.warn(
+            `[dx] Late callback discarded after deactivation (total: ${droppedRunCount}) for component "${init.dxId}".`
+          );
           notify("WARN_late_callback", {
             componentId: init.dxId,
             totalDropped: droppedRunCount,
@@ -298,28 +309,25 @@ export function dx<TQueryFn extends AnyQueryFn>(
     }
 
     if (DEV && isRunning) {
-      const msg =
-        `[dx] Re-entrant run detected in component "${init.dxId}". ` +
-        `Avoid calling trigger() synchronously inside run().`;
-      console.warn(msg);
+      console.warn(`[dx] Re-entrant run detected in component "${init.dxId}". Avoid calling trigger() synchronously inside run().`);
       notify("WARN_reentrant_run", { componentId: init.dxId });
     }
 
-    const myRunToken  = ++currentRunToken;
+    const myRunToken = ++currentRunToken;
     const myExecToken = executionToken;
-    const myRunIndex  = runIndexSinceActivation++;
+    const myRunIndex = runIndexSinceActivation++;
 
     const ctx: RunContext = {
-      runIndex:          myRunIndex,
-      executionToken:    myExecToken,
-      runToken:          myRunToken,
-      isLatestRun:       () => myRunToken  === currentRunToken,
+      runIndex: myRunIndex,
+      executionToken: myExecToken,
+      runToken: myRunToken,
+      isLatestRun: () => myRunToken === currentRunToken,
       isActiveExecution: () => myExecToken === executionToken,
     };
 
     isRunning = true;
     try {
-      Promise.resolve(run(init, result, ctx)).catch((error: unknown) =>
+      Promise.resolve(run(init, result, ctx, emit)).catch((error: unknown) =>
         notify("ERROR_run_async", { error, componentId: init.dxId })
       );
     } catch (error) {
@@ -329,17 +337,13 @@ export function dx<TQueryFn extends AnyQueryFn>(
     }
   };
 
-  // ── activate ──────────────────────────────────────────────────────────────
   const activate = (): void => {
     if (activeDxIds.has(init.dxId)) {
       notify("ERROR_dxId_collision", {
-        error: new Error(
-          `[dx] Component "${init.dxId}" is already active. ` +
-          `dxId must be unique across concurrently active instances.`
-        ),
+        error: new Error(`[dx] Component "${init.dxId}" is already active. dxId must be unique across concurrently active instances.`),
         componentId: init.dxId,
       });
-      desiredState  = "inactive";
+      desiredState = "inactive";
       transitioning = false;
       reconcile();
       return;
@@ -347,16 +351,12 @@ export function dx<TQueryFn extends AnyQueryFn>(
 
     executionToken++;
     runIndexSinceActivation = 0;
-    droppedRunCount         = 0;
+    droppedRunCount = 0;
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const beforeOnResult = beforeOn(init) as any;
       if (beforeOnResult instanceof Promise) {
-        throw new Error(
-          `[dx] beforeOn must be synchronous in component "${init.dxId}". ` +
-          `Return value was a Promise. Move async work into run().`
-        );
+        throw new Error(`[dx] beforeOn must be synchronous in component "${init.dxId}". Return value was a Promise. Move async work into run().`);
       }
     } catch (error) {
       notify("ERROR_beforeOn", { error, componentId: init.dxId });
@@ -367,7 +367,7 @@ export function dx<TQueryFn extends AnyQueryFn>(
           notify("ERROR_onBeforeOnFail", { error: cleanupError, componentId: init.dxId });
         }
       }
-      desiredState  = "inactive";
+      desiredState = "inactive";
       transitioning = false;
       reconcile();
       return;
@@ -375,15 +375,15 @@ export function dx<TQueryFn extends AnyQueryFn>(
 
     try {
       sub = subscribe(
-        (result: unknown) => invokeRun(result as Subscription<ReturnType<TQueryFn>>["result"]),
+        (res) => invokeRun(res as Subscription<ReturnType<TQueryFn>>["result"]),
         queryFn,
         init,
         { ...queryOptions, cmpId: init.dxId },
-        stores as { kernel: KernelStore } | undefined // Safe explicit cast
+        stores
       ) as Subscription<ReturnType<TQueryFn>>;
     } catch (error) {
       notify("ERROR_subscribe", { error, componentId: init.dxId });
-      desiredState  = "inactive";
+      desiredState = "inactive";
       transitioning = false;
       reconcile();
       return;
@@ -393,14 +393,12 @@ export function dx<TQueryFn extends AnyQueryFn>(
     actualState = "active";
 
     invokeRun(sub.result);
-
     sub.on();
 
     transitioning = false;
     reconcile();
   };
 
-  // ── deactivate ────────────────────────────────────────────────────────────
   const deactivate = (): void => {
     executionToken++;
     actualState = "inactive";
@@ -411,13 +409,9 @@ export function dx<TQueryFn extends AnyQueryFn>(
     activeDxIds.delete(init.dxId);
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const beforeOffResult = beforeOff(init) as any;
       if (beforeOffResult instanceof Promise) {
-        throw new Error(
-          `[dx] beforeOff must be synchronous in component "${init.dxId}". ` +
-          `Return value was a Promise. Move async work into run().`
-        );
+        throw new Error(`[dx] beforeOff must be synchronous in component "${init.dxId}". Return value was a Promise. Move async work into run().`);
       }
     } catch (error) {
       notify("ERROR_beforeOff", { error, componentId: init.dxId });
@@ -427,21 +421,13 @@ export function dx<TQueryFn extends AnyQueryFn>(
     reconcile();
   };
 
-  // ── reconcile ─────────────────────────────────────────────────────────────
   const reconcile = (): void => {
-    if (transitioning)               return;
+    if (transitioning) return;
     if (desiredState === actualState) return;
-
     transitioning = true;
-
-    if (desiredState === "active") {
-      activate();
-    } else {
-      deactivate();
-    }
+    desiredState === "active" ? activate() : deactivate();
   };
 
-  // ── Public API ────────────────────────────────────────────────────────────
   const on = (): void => {
     desiredState = "active";
     reconcile();
@@ -454,10 +440,7 @@ export function dx<TQueryFn extends AnyQueryFn>(
 
   const claim = (): { on: () => void; off: () => void } => {
     if (claimed) {
-      throw new Error(
-        `[dx] Component "${init.dxId}" has already been claimed. ` +
-        `Only one owner may call on()/off() per dx instance.`
-      );
+      throw new Error(`[dx] Component "${init.dxId}" has already been claimed. Only one owner may call on()/off() per dx instance.`);
     }
     claimed = true;
     return { on, off };
