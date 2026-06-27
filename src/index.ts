@@ -34,27 +34,28 @@ export const subscribe = <FnType extends (x: any) => any>(
   options: QueryOptions = {},
   stores: { kernel: KernelStore } = { kernel: kernelStore }
 ) => {
+  const effectiveOptions: QueryOptions = { ...options };
   /* istanbul ignore next */
-  const cmpId = options.cmpId ?? getSortedID();
-  options.hasResultChanged = options.hasResultChanged || ((data:any, prevData:any) => ! deepEqual(data, prevData));
+  const cmpId = effectiveOptions.cmpId ?? stores.kernel.getSortedID();
+  effectiveOptions.hasResultChanged = effectiveOptions.hasResultChanged || ((data:any, prevData:any) => ! deepEqual(data, prevData));
   /* istanbul ignore next */
   const result: Result = {    
     //TODO: revisit production/developement mode: trackResultChanges=false/true;
-    data: options?.skipInitialQuerying ? undefined : stores.kernel.trackResultChanges ? deepClone(readFn(paramsObj)) : readFn(paramsObj),
+    data: effectiveOptions?.skipInitialQuerying ? undefined : stores.kernel.trackResultChanges ? deepClone(readFn(paramsObj)) : readFn(paramsObj),
     prevData: undefined,
     version: 0,
     writeFn: undefined,
     writeParamsObj: undefined
   };
   let _trigger = readTrigger;
-  if (options.debounceMs || options.throttleMs) {
-    if (options.debounceMs && options.throttleMs) {
+  if (effectiveOptions.debounceMs || effectiveOptions.throttleMs) {
+    if (effectiveOptions.debounceMs && effectiveOptions.throttleMs) {
       throw new Error('Cannot have both debounce and throttle options for any given query')
     }
-    if (options.debounceMs) {
-      _trigger = debounce(readTrigger, options.debounceMs);
-    } else if (options.throttleMs) {
-      _trigger = throttle(readTrigger, options.throttleMs);
+    if (effectiveOptions.debounceMs) {
+      _trigger = debounce(readTrigger, effectiveOptions.debounceMs);
+    } else if (effectiveOptions.throttleMs) {
+      _trigger = throttle(readTrigger, effectiveOptions.throttleMs);
     }
   }
   const on = () => {
@@ -62,7 +63,7 @@ export const subscribe = <FnType extends (x: any) => any>(
       instanceKey: cmpId,
       readTrigger: _trigger,
       paramsObj: paramsObj || {},
-      options,
+      options: effectiveOptions,
       result: result
     }}, stores);
   };  
@@ -72,7 +73,7 @@ export const subscribe = <FnType extends (x: any) => any>(
       instanceKey: cmpId,
       readTrigger: undefined,
       paramsObj: paramsObj || {},
-      options,
+      options: effectiveOptions,
       result: {
         data: undefined,
         prevData: undefined,
@@ -237,7 +238,7 @@ const resolveDev = (override?: boolean): boolean => {
   return false;
 };
 
-const activeDxIds = new Set<string>();
+const activeDxIdsByStore = new WeakMap<KernelStore, Set<string>>();
 const EMPTY_OPTIONS: QueryOptions = {};
 const NOOP_HOOK: LifecycleHook = () => {};
 
@@ -338,7 +339,12 @@ export function dx<
   };
 
   const activate = (): void => {
-    if (activeDxIds.has(init.dxId)) {
+    const storeToUse = stores?.kernel ?? kernelStore;
+    if (!activeDxIdsByStore.has(storeToUse)) {
+      activeDxIdsByStore.set(storeToUse, new Set());
+    }
+    const storeActiveDxIds = activeDxIdsByStore.get(storeToUse)!;
+    if (storeActiveDxIds.has(init.dxId)) {
       notify("ERROR_dxId_collision", {
         error: new Error(`[dx] Component "${init.dxId}" is already active. dxId must be unique across concurrently active instances.`),
         componentId: init.dxId,
@@ -389,7 +395,7 @@ export function dx<
       return;
     }
 
-    activeDxIds.add(init.dxId);
+    storeActiveDxIds.add(init.dxId);
     actualState = "active";
 
     invokeRun(sub.result);
@@ -406,7 +412,9 @@ export function dx<
     sub?.off();
     sub = null;
 
-    activeDxIds.delete(init.dxId);
+    const storeToUse = stores?.kernel ?? kernelStore;
+    const storeActiveDxIds = activeDxIdsByStore.get(storeToUse);
+    storeActiveDxIds?.delete(init.dxId);
 
     try {
       const beforeOffResult = beforeOff(init) as any;
