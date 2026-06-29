@@ -14,7 +14,7 @@
  * Run with: tsc --noEmit  (or via your existing Jest + ts-jest pipeline)
  */
 
-import { dx, type DxConfig, type AnyQueryFn } from '../index';
+import { dx, type DxConfig, type AnyQueryFn, type RunContext, type DxEvent } from '../index';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -33,12 +33,12 @@ describe('dx type tests: TQueryFn → result.data', () => {
     dx({
       init:    { dxId: 'type-01', team: 'right' as const },
       queryFn: getCounterByTeam,
-      notify:  noop,
-      onEmit:  noop,
-      run: (_init, result) => {
+      onUpdate: (_init, result) => {
         const n: number = result.data;
         void n;
       },
+      notify:  noop,
+      onEmit:  noop,
     });
   });
 
@@ -46,12 +46,12 @@ describe('dx type tests: TQueryFn → result.data', () => {
     dx({
       init:    { dxId: 'type-02', id: 'abc' },
       queryFn: getLabel,
-      notify:  noop,
-      onEmit:  noop,
-      run: (_init, result) => {
+      onUpdate: (_init, result) => {
         const s: string = result.data;
         void s;
       },
+      notify:  noop,
+      onEmit:  noop,
     });
   });
 
@@ -59,12 +59,12 @@ describe('dx type tests: TQueryFn → result.data', () => {
     dx({
       init:    { dxId: 'type-03', team: 'left' as const },
       queryFn: getCounterByTeam,
-      notify:  noop,
-      onEmit:  noop,
-      run: (_init, result) => {
+      onUpdate: (_init, result) => {
         const n: number = result.prevData;
         void n;
       },
+      notify:  noop,
+      onEmit:  noop,
     });
   });
 
@@ -72,13 +72,13 @@ describe('dx type tests: TQueryFn → result.data', () => {
     dx({
       init:    { dxId: 'type-04', team: 'right' as const },
       queryFn: getCounterByTeam,
-      notify:  noop,
-      onEmit:  noop,
-      run: (_init, result) => {
+      onUpdate: (_init, result) => {
         // @ts-expect-error — result.data is number, not string
         const s: string = result.data;
         void s;
       },
+      notify:  noop,
+      onEmit:  noop,
     });
   });
 
@@ -86,12 +86,12 @@ describe('dx type tests: TQueryFn → result.data', () => {
     dx({
       init:    { dxId: 'type-05', enabled: true },
       queryFn: getFlag,
-      notify:  noop,
-      onEmit:  noop,
-      run: (_init, result) => {
+      onUpdate: (_init, result) => {
         const b: boolean = result.data;
         void b;
       },
+      notify:  noop,
+      onEmit:  noop,
     });
   });
 
@@ -99,13 +99,13 @@ describe('dx type tests: TQueryFn → result.data', () => {
     dx({
       init:    { dxId: 'type-06', enabled: false },
       queryFn: getFlag,
-      notify:  noop,
-      onEmit:  noop,
-      run: (_init, result) => {
+      onUpdate: (_init, result) => {
         // @ts-expect-error — result.data is boolean, not number
         const n: number = result.data;
         void n;
       },
+      notify:  noop,
+      onEmit:  noop,
     });
   });
 
@@ -119,9 +119,9 @@ describe('dx type tests: TInit constraint', () => {
     dx({
       init:    { dxId: 'type-10', team: 'right' as const },
       queryFn: getCounterByTeam,
+      onUpdate: noop,
       notify:  noop,
       onEmit:  noop,
-      run:     noop,
     });
   });
 
@@ -130,9 +130,9 @@ describe('dx type tests: TInit constraint', () => {
       // @ts-expect-error — init is missing `team` required by getCounterByTeam
       init:    { dxId: 'type-11' },
       queryFn: getCounterByTeam,
+      onUpdate: noop,
       notify:  noop,
       onEmit:  noop,
-      run:     noop,
     });
   });
 
@@ -144,9 +144,9 @@ describe('dx type tests: TInit constraint', () => {
         team: 'center' as const,
       },
       queryFn: getCounterByTeam,
+      onUpdate: noop,
       notify:  noop,
       onEmit:  noop,
-      run:     noop,
     });
   });
 
@@ -155,143 +155,194 @@ describe('dx type tests: TInit constraint', () => {
       // @ts-expect-error — dxId is required
       init:    { team: 'right' as const },
       queryFn: getCounterByTeam,
+      onUpdate: noop,
       notify:  noop,
       onEmit:  noop,
-      run:     noop,
     });
   });
 
-  it('run receives init typed to the combined dxId + queryFn param shape', () => {
+  it('onUpdate receives init typed to the combined dxId + queryFn param shape', () => {
     dx({
       init:    { dxId: 'type-14', team: 'left' as const },
       queryFn: getCounterByTeam,
-      notify:  noop,
-      onEmit:  noop,
-      run: (init) => {
+      onUpdate: (init) => {
         const id: string           = init.dxId;
         const t: 'left' | 'right' = init.team;
         void id; void t;
       },
+      notify:  noop,
+      onEmit:  noop,
     });
   });
 
 });
 
-// ─── 3. EventsForConfig: the derived event set is correct per config shape ────
-//
-// These type‑level assertions verify that EventsForConfig correctly includes or
-// excludes events based on the presence of beforeOn/beforeOff hooks.
+// ─── 3. RunContext: isFirstRun is correctly typed ────────────────────────────
 
-type Assert<T extends true> = T;
-type Includes<TUnion, TMember> = TMember extends TUnion ? true : false;
-type Excludes<TUnion, TMember> = TMember extends TUnion ? false : true;
+describe('dx type tests: RunContext', () => {
 
-// Replicate EventsForConfig locally to guard observable behavior
-type EventsFor<TConfig> =
-  | 'ERROR_dxId_collision'
-  | 'ERROR_subscribe'
-  | 'ERROR_run_sync'
-  | 'ERROR_run_async'
-  | 'WARN_reentrant_run'
-  | 'WARN_late_callback'
-  | (TConfig extends { beforeOn: (...args: never[]) => unknown }
-      ? 'ERROR_beforeOn' | 'ERROR_onBeforeOnFail'
-      : never)
-  | (TConfig extends { beforeOff: (...args: never[]) => unknown }
-      ? 'ERROR_beforeOff'
-      : never);
-
-type ConfigNoHooks       = DxConfig<typeof getCounterByTeam, any>;
-type ConfigWithBeforeOn  = DxConfig<typeof getCounterByTeam, any> & { beforeOn:  () => void };
-type ConfigWithBeforeOff = DxConfig<typeof getCounterByTeam, any> & { beforeOff: () => void };
-type ConfigWithBothHooks = DxConfig<typeof getCounterByTeam, any> & { beforeOn:  () => void; beforeOff: () => void };
-
-describe('dx type tests: EventsForConfig derivation', () => {
-
-  it('ERROR_dxId_collision is always in the event set', () => {
-    type T = Assert<Includes<EventsFor<ConfigNoHooks>, 'ERROR_dxId_collision'>>;
-    const _: T = true; void _;
+  it('ctx.runIndex is a number', () => {
+    dx({
+      init:    { dxId: 'type-20', team: 'right' as const },
+      queryFn: getCounterByTeam,
+      onUpdate: (_init, _result, ctx) => {
+        const idx: number = ctx.runIndex;
+        void idx;
+      },
+      notify:  noop,
+      onEmit:  noop,
+    });
   });
 
-  it('ERROR_subscribe is always in the event set', () => {
-    type T = Assert<Includes<EventsFor<ConfigNoHooks>, 'ERROR_subscribe'>>;
-    const _: T = true; void _;
+  it('ctx.isFirstRun is a function returning boolean', () => {
+    dx({
+      init:    { dxId: 'type-21', team: 'right' as const },
+      queryFn: getCounterByTeam,
+      onUpdate: (_init, _result, ctx) => {
+        const isFirst: boolean = ctx.isFirstRun();
+        void isFirst;
+      },
+      notify:  noop,
+      onEmit:  noop,
+    });
   });
 
-  it('ERROR_run_sync is always in the event set', () => {
-    type T = Assert<Includes<EventsFor<ConfigNoHooks>, 'ERROR_run_sync'>>;
-    const _: T = true; void _;
+  it('accessing non-existent ctx properties is a type error', () => {
+    dx({
+      init:    { dxId: 'type-22', team: 'right' as const },
+      queryFn: getCounterByTeam,
+      onUpdate: (_init, _result, ctx: RunContext) => {
+        // @ts-expect-error — executionToken does not exist on RunContext
+        const token = ctx.executionToken;
+        void token;
+      },
+      notify:  noop,
+      onEmit:  noop,
+    });
   });
 
-  it('ERROR_run_async is always in the event set', () => {
-    type T = Assert<Includes<EventsFor<ConfigNoHooks>, 'ERROR_run_async'>>;
-    const _: T = true; void _;
+});
+
+// ─── 4. At least one of onUpdate, onReady, onUnmount must be provided ────────
+
+describe('dx type tests: at least one lifecycle hook required', () => {
+
+  it('providing only onUpdate is valid', () => {
+    dx({
+      init:    { dxId: 'type-30', team: 'right' as const },
+      queryFn: getCounterByTeam,
+      onUpdate: noop,
+      notify:  noop,
+      onEmit:  noop,
+    });
   });
 
-  it('WARN_reentrant_run is always in the event set', () => {
-    type T = Assert<Includes<EventsFor<ConfigNoHooks>, 'WARN_reentrant_run'>>;
-    const _: T = true; void _;
+  it('providing only onReady is valid', () => {
+    dx({
+      init:    { dxId: 'type-31', team: 'right' as const },
+      queryFn: getCounterByTeam,
+      onReady: noop,
+      notify:  noop,
+      onEmit:  noop,
+    });
   });
 
-  it('WARN_late_callback is always in the event set', () => {
-    type T = Assert<Includes<EventsFor<ConfigNoHooks>, 'WARN_late_callback'>>;
-    const _: T = true; void _;
+  it('providing only onUnmount is valid', () => {
+    dx({
+      init:    { dxId: 'type-32', team: 'right' as const },
+      queryFn: getCounterByTeam,
+      onUnmount: noop,
+      notify:  noop,
+      onEmit:  noop,
+    });
   });
 
-  it('ERROR_beforeOn is excluded when beforeOn is absent', () => {
-    type T = Assert<Excludes<EventsFor<ConfigNoHooks>, 'ERROR_beforeOn'>>;
-    const _: T = true; void _;
+  it('providing all three lifecycle hooks is valid', () => {
+    dx({
+      init:    { dxId: 'type-33', team: 'right' as const },
+      queryFn: getCounterByTeam,
+      onUpdate: noop,
+      onReady: noop,
+      onUnmount: noop,
+      notify:  noop,
+      onEmit:  noop,
+    });
   });
 
-  it('ERROR_onBeforeOnFail is excluded when beforeOn is absent', () => {
-    type T = Assert<Excludes<EventsFor<ConfigNoHooks>, 'ERROR_onBeforeOnFail'>>;
-    const _: T = true; void _;
+  it('providing no lifecycle hooks is a type error', () => {
+    expect(() => {
+      // @ts-expect-error — at least one of onUpdate, onReady, onUnmount must be provided
+      dx({
+        init: { dxId: 'type-34', team: 'right' as const },
+        queryFn: getCounterByTeam,
+        notify: noop,
+        onEmit: noop,
+      });
+    }).toThrow('[dx] At least one of onUpdate, onReady, or onUnmount must be provided.');
   });
 
-  it('ERROR_beforeOn is included when beforeOn is present', () => {
-    type T = Assert<Includes<EventsFor<ConfigWithBeforeOn>, 'ERROR_beforeOn'>>;
-    const _: T = true; void _;
+});
+
+// ─── 5. DxEvent type is narrowed based on optional lifecycle hooks ───────────
+describe('dx type tests: DxEvent narrowing', () => {
+
+  it('notify callback can emit ERROR_dxId_collision', () => {
+    dx({
+      init: { dxId: 'type-40', team: 'right' as const },
+      queryFn: getCounterByTeam,
+      onUpdate: noop,
+      notify: (event, payload) => {
+        const e: DxEvent = event;
+        void e;
+        void payload;
+      },
+      onEmit: noop,
+    });
   });
 
-  it('ERROR_onBeforeOnFail is included when beforeOn is present', () => {
-    type T = Assert<Includes<EventsFor<ConfigWithBeforeOn>, 'ERROR_onBeforeOnFail'>>;
-    const _: T = true; void _;
+  it('notify callback can emit ERROR_subscribe', () => {
+    dx({
+      init: { dxId: 'type-41', team: 'right' as const },
+      queryFn: getCounterByTeam,
+      onUpdate: noop,
+      notify: (event, payload) => {
+        const e: DxEvent = event;
+        void e;
+        void payload;
+      },
+      onEmit: noop,
+    });
   });
 
-  it('ERROR_beforeOff is excluded when beforeOff is absent', () => {
-    type T = Assert<Excludes<EventsFor<ConfigNoHooks>, 'ERROR_beforeOff'>>;
-    const _: T = true; void _;
+  it('notify callback can emit ERROR_beforeOff when beforeOff is provided', () => {
+    dx({
+      init: { dxId: 'type-42', team: 'right' as const },
+      queryFn: getCounterByTeam,
+      onUpdate: noop,
+      beforeOff: noop,
+      notify: (event, payload) => {
+        const e: DxEvent = event;
+        void e;
+        void payload;
+      },
+      onEmit: noop,
+    });
   });
 
-  it('ERROR_beforeOff is included when beforeOff is present', () => {
-    type T = Assert<Includes<EventsFor<ConfigWithBeforeOff>, 'ERROR_beforeOff'>>;
-    const _: T = true; void _;
-  });
-
-  it('all nine events are present when both hooks are provided', () => {
-    type Events = EventsFor<ConfigWithBothHooks>;
-    type T = Assert<
-      Includes<Events, 'ERROR_dxId_collision'>  &
-      Includes<Events, 'ERROR_subscribe'>        &
-      Includes<Events, 'ERROR_run_sync'>         &
-      Includes<Events, 'ERROR_run_async'>        &
-      Includes<Events, 'WARN_reentrant_run'>     &
-      Includes<Events, 'WARN_late_callback'>     &
-      Includes<Events, 'ERROR_beforeOn'>         &
-      Includes<Events, 'ERROR_onBeforeOnFail'>   &
-      Includes<Events, 'ERROR_beforeOff'>
-    >;
-    const _: T = true; void _;
-  });
-
-  it('ERROR_beforeOff is excluded when only beforeOn is present', () => {
-    type T = Assert<Excludes<EventsFor<ConfigWithBeforeOn>, 'ERROR_beforeOff'>>;
-    const _: T = true; void _;
-  });
-
-  it('ERROR_beforeOn is excluded when only beforeOff is present', () => {
-    type T = Assert<Excludes<EventsFor<ConfigWithBeforeOff>, 'ERROR_beforeOn'>>;
-    const _: T = true; void _;
+  it('notify callback receives DxEvent union', () => {
+    dx({
+      init: { dxId: 'type-43', team: 'right' as const },
+      queryFn: getCounterByTeam,
+      onUpdate: noop,
+      notify: (
+        event: DxEvent,
+        payload: any
+      ) => {
+        void event;
+        void payload;
+      },
+      onEmit: noop,
+    });
   });
 
 });

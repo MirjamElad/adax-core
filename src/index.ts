@@ -131,21 +131,13 @@ export type DxErrorEvent =
   | "ERROR_onBeforeOnFail"
   | "ERROR_subscribe"
   | "ERROR_beforeOff"
-  | "ERROR_run_sync"
-  | "ERROR_run_async";
+  | "ERROR_run_sync";
 
-export type DxWarnEvent =
-  | "WARN_reentrant_run"
-  | "WARN_late_callback";
-
-export type DxEvent = DxErrorEvent | DxWarnEvent;
+export type DxEvent = DxErrorEvent;
 
 export type RunContext = {
-  runIndex:            number;
-  executionToken:      number;
-  runToken:            number;
-  isLatestRun:         () => boolean;
-  isActiveExecution:   () => boolean;
+  runIndex:   number;
+  isFirstRun: () => boolean;
 };
 
 export type QueryResult<TQueryFn extends AnyQueryFn> = {
@@ -155,17 +147,6 @@ export type QueryResult<TQueryFn extends AnyQueryFn> = {
   writeFn?: (x: unknown) => void;
   writeParamsObj: unknown;
 };
-
-export type RunFn<
-  TQueryFn extends AnyQueryFn,
-  TInit extends Parameters<TQueryFn>[0] & DxInit,
-  TNotifications extends NotificationMap
-> = (
-  init: TInit,
-  result: QueryResult<TQueryFn>,
-  ctx: RunContext,
-  emit: EmitFn<TNotifications>
-) => void | Promise<void>;
 
 export type LifecycleHook<TInit extends DxInit = DxInit> = (init: TInit) => void;
 
@@ -181,250 +162,179 @@ type Subscription<TResult> = {
   off: () => void;
 };
 
-// Conditional event narrowing (kept from original)
-type EventsForConfig<TConfig extends HookShape> =
-  | "ERROR_dxId_collision"
-  | "ERROR_subscribe"
-  | "ERROR_run_sync"
-  | "ERROR_run_async"
-  | "WARN_reentrant_run"
-  | "WARN_late_callback"
-  | (TConfig extends { beforeOn: LifecycleHook }
-      ? "ERROR_beforeOn" | "ERROR_onBeforeOnFail"
-      : never)
-  | (TConfig extends { beforeOff: LifecycleHook }
-      ? "ERROR_beforeOff"
-      : never);
-
-type ErrorPayload = { error: unknown; componentId: string };
-type WarnReentrantPayload = { componentId: string };
-type WarnLateCallbackPayload = { componentId: string; totalDropped: number };
-
-type NotifyPayload<TEvent extends DxEvent> =
-  TEvent extends `ERROR_${string}`      ? ErrorPayload           :
-  TEvent extends "WARN_reentrant_run"   ? WarnReentrantPayload   :
-  TEvent extends "WARN_late_callback"   ? WarnLateCallbackPayload :
-  never;
-
 export interface DxConfig<
   TQueryFn extends AnyQueryFn,
-  TInit extends Parameters<TQueryFn>[0] & DxInit,
+  TInit extends DxInit,
   TNotifications extends NotificationMap = NotificationMap
 > {
   init:            TInit;
   queryFn:         TQueryFn;
-  run:             RunFn<TQueryFn, TInit, TNotifications>;
-  notify:          <TEvent extends DxEvent>(event: TEvent, payload: NotifyPayload<TEvent>) => void;
-  onEmit:          EmitFn<TNotifications>;   // required – explicit domain event wiring
+  onUpdate?:       (init: TInit, result: QueryResult<TQueryFn>, ctx: RunContext, emit: EmitFn<TNotifications>) => void;
+  onReady?:        (init: TInit) => void;
+  onUnmount?:      (init: TInit) => void;
+  notify:          (event: DxEvent, payload: any) => void;
+  onEmit:          EmitFn<TNotifications>;
   beforeOn?:       LifecycleHook<TInit>;
   beforeOff?:      LifecycleHook<TInit>;
   onBeforeOnFail?: LifecycleHook<TInit>;
-  queryOptions?:   QueryOptions;              // non‑generic, matches adax-core
+  queryOptions?:   QueryOptions;
   stores?:         { kernel: KernelStore };
-  __dev__?:        boolean;
 }
 
-// HookShape for conditional event derivation
-type HookShape = {
-  beforeOn?:  (...args: never[]) => unknown;
-  beforeOff?: (...args: never[]) => unknown;
-};
-
-const resolveDev = (override?: boolean): boolean => {
-  if (typeof override === "boolean") return override;
-  if (typeof process !== "undefined" && process.env?.NODE_ENV) {
-    return process.env.NODE_ENV === "development";
-  }
-  return false;
-};
-
-const activeDxIdsByStore = new WeakMap<KernelStore, Set<string>>();
-const EMPTY_OPTIONS: QueryOptions = {};
-const NOOP_HOOK: LifecycleHook = () => {};
+type AtLeastOneHook<TQueryFn extends AnyQueryFn, TInit extends DxInit, TN extends NotificationMap> =
+  | (DxConfig<TQueryFn, TInit, TN> & { onUpdate:  NonNullable<DxConfig<TQueryFn, TInit, TN>['onUpdate']>  })
+  | (DxConfig<TQueryFn, TInit, TN> & { onReady:   NonNullable<DxConfig<TQueryFn, TInit, TN>['onReady']>   })
+  | (DxConfig<TQueryFn, TInit, TN> & { onUnmount: NonNullable<DxConfig<TQueryFn, TInit, TN>['onUnmount']> });
 
 export function dx<
   TQueryFn extends AnyQueryFn,
   TInit extends Parameters<TQueryFn>[0] & DxInit,
-  TNotifications extends NotificationMap,
-  TConfig extends HookShape
->(
-  config: DxConfig<TQueryFn, TInit, TNotifications> & TConfig & {
-    notify: <TEvent extends EventsForConfig<TConfig>>(
-      event: TEvent,
-      payload: NotifyPayload<TEvent>
-    ) => void;
+  TNotifications extends NotificationMap
+>(config: AtLeastOneHook<TQueryFn, TInit, TNotifications>)
+  : { claim: () => { on: () => void; off: () => void } } {
+
+  if (!config.onUpdate && !config.onReady && !config.onUnmount) {
+    throw new Error(`[dx] At least one of onUpdate, onReady, or onUnmount must be provided.`);
   }
-): { claim: () => { on: () => void; off: () => void } } {
 
-  const {
-    init,
-    queryFn,
-    run,
-    notify,
-    onEmit,
-    beforeOn = NOOP_HOOK,
-    beforeOff = NOOP_HOOK,
-    onBeforeOnFail,
-    queryOptions = EMPTY_OPTIONS,
-    stores,
-    __dev__,
-  } = config as DxConfig<TQueryFn, TInit, TNotifications> & TConfig & {
-    notify: (event: DxEvent, payload: unknown) => void;
-    onBeforeOnFail?: LifecycleHook<TInit>;
-    queryOptions?: QueryOptions;
-    stores?: { kernel: KernelStore };
-    __dev__?: boolean;
-  };
+  const stores = config.stores ?? { kernel: kernelStore };
 
-  const DEV = resolveDev(__dev__);
-  const emit = onEmit; // domain event emitter
-
-  let claimed = false;
+  let claimed                = false;
   let desiredState: "active" | "inactive" = "inactive";
-  let actualState: "active" | "inactive" = "inactive";
-  let transitioning = false;
-
-  let executionToken = 0;
-  let currentRunToken = 0;
+  let actualState:  "active" | "inactive" = "inactive";
+  let transitioning          = false;
+  let currentInit: TInit | null = null;
+  let sub: ReturnType<typeof subscribe> | null = null;
   let runIndexSinceActivation = 0;
 
-  let sub: Subscription<ReturnType<TQueryFn>> | null = null;
-  let isRunning = false;
-  let droppedRunCount = 0;
-
-  const invokeRun = (result: Subscription<ReturnType<TQueryFn>>["result"]): void => {
-    if (actualState !== "active") {
-      if (DEV) {
-        droppedRunCount++;
-        if (droppedRunCount === 1 || droppedRunCount % 100 === 0) {
-          console.warn(
-            `[dx] Late callback discarded after deactivation (total: ${droppedRunCount}) for component "${init.dxId}".`
-          );
-          notify("WARN_late_callback", {
-            componentId: init.dxId,
-            totalDropped: droppedRunCount,
-          });
-        }
-      }
-      return;
-    }
-
-    if (DEV && isRunning) {
-      console.warn(`[dx] Re-entrant run detected in component "${init.dxId}". Avoid calling trigger() synchronously inside run().`);
-      notify("WARN_reentrant_run", { componentId: init.dxId });
-    }
-
-    const myRunToken = ++currentRunToken;
-    const myExecToken = executionToken;
+  const invokeRun = (init: TInit, result: Result): void => {
     const myRunIndex = runIndexSinceActivation++;
-
     const ctx: RunContext = {
-      runIndex: myRunIndex,
-      executionToken: myExecToken,
-      runToken: myRunToken,
-      isLatestRun: () => myRunToken === currentRunToken,
-      isActiveExecution: () => myExecToken === executionToken,
+      runIndex:   myRunIndex,
+      isFirstRun: () => myRunIndex === 0,
     };
-
-    isRunning = true;
     try {
-      Promise.resolve(run(init, result, ctx, emit)).catch((error: unknown) =>
-        notify("ERROR_run_async", { error, componentId: init.dxId })
-      );
-    } catch (error) {
-      notify("ERROR_run_sync", { error, componentId: init.dxId });
-    } finally {
-      isRunning = false;
+      const r = (config as any).onUpdate?.(init, result, ctx, config.onEmit);
+      if ((r as any) instanceof Promise) throw new Error("onUpdate must be synchronous");
+    } catch (err) {
+      config.notify("ERROR_run_sync", { error: err, componentId: init.dxId });
     }
   };
 
   const activate = (): void => {
-    const storeToUse = stores?.kernel ?? kernelStore;
-    if (!activeDxIdsByStore.has(storeToUse)) {
-      activeDxIdsByStore.set(storeToUse, new Set());
-    }
-    const storeActiveDxIds = activeDxIdsByStore.get(storeToUse)!;
-    if (storeActiveDxIds.has(init.dxId)) {
-      notify("ERROR_dxId_collision", {
-        error: new Error(`[dx] Component "${init.dxId}" is already active. dxId must be unique across concurrently active instances.`),
-        componentId: init.dxId,
+    if (stores.kernel.activeDxIds.has(config.init.dxId)) {
+      config.notify("ERROR_dxId_collision", {
+        error: new Error(`[dx] "${config.init.dxId}" already active.`),
+        componentId: config.init.dxId,
       });
+      currentInit = null;
       desiredState = "inactive";
       transitioning = false;
       reconcile();
       return;
     }
 
-    executionToken++;
+    const init = { ...config.init } as TInit;
     runIndexSinceActivation = 0;
-    droppedRunCount = 0;
 
     try {
-      const beforeOnResult = beforeOn(init) as any;
-      if (beforeOnResult instanceof Promise) {
-        throw new Error(`[dx] beforeOn must be synchronous in component "${init.dxId}". Return value was a Promise. Move async work into run().`);
-      }
-    } catch (error) {
-      notify("ERROR_beforeOn", { error, componentId: init.dxId });
-      if (onBeforeOnFail) {
-        try {
-          onBeforeOnFail(init);
-        } catch (cleanupError) {
-          notify("ERROR_onBeforeOnFail", { error: cleanupError, componentId: init.dxId });
+      const r = config.beforeOn?.(init);
+      if ((r as any) instanceof Promise) throw new Error("beforeOn must be synchronous");
+    } catch (err) {
+      config.notify("ERROR_beforeOn", { error: err, componentId: init.dxId });
+      if (config.onBeforeOnFail) {
+        try { config.onBeforeOnFail(init); }
+        catch (cleanupErr) {
+          config.notify("ERROR_onBeforeOnFail", { error: cleanupErr, componentId: init.dxId });
         }
       }
       desiredState = "inactive";
       transitioning = false;
-      reconcile();
-      return;
+      throw err;
     }
+
+    let isLive = false;
+    let pendingUpdate = false;
+
+    const protectedReadTrigger = (res: Result): void => {
+      if (!isLive) {
+        pendingUpdate = true;
+        return;
+      }
+      invokeRun(init, res);
+    };
 
     try {
       sub = subscribe(
-        (res) => invokeRun(res as Subscription<ReturnType<TQueryFn>>["result"]),
-        queryFn,
+        protectedReadTrigger,
+        config.queryFn,
         init,
-        { ...queryOptions, cmpId: init.dxId },
+        { ...config.queryOptions, cmpId: init.dxId },
         stores
-      ) as Subscription<ReturnType<TQueryFn>>;
-    } catch (error) {
-      notify("ERROR_subscribe", { error, componentId: init.dxId });
+      );
+    } catch (err) {
+      config.notify("ERROR_subscribe", { error: err, componentId: init.dxId });
+      if (config.onBeforeOnFail) {
+        try { config.onBeforeOnFail(init); }
+        catch (cleanupErr) {
+          config.notify("ERROR_onBeforeOnFail", { error: cleanupErr, componentId: init.dxId });
+        }
+      }
+      currentInit = null;
       desiredState = "inactive";
       transitioning = false;
       reconcile();
       return;
     }
 
-    storeActiveDxIds.add(init.dxId);
+    sub.on();
+    stores.kernel.activeDxIds.add(init.dxId);
+    currentInit = init;
     actualState = "active";
 
-    invokeRun(sub.result);
-    sub.on();
+    invokeRun(init, sub.result);
+
+    isLive = true;
+    if (pendingUpdate) {
+      pendingUpdate = false;
+      invokeRun(init, sub.result);
+    }
+
+    try {
+      const r = (config as any).onReady?.(init);
+      if ((r as any) instanceof Promise) throw new Error("onReady must be synchronous");
+    } catch (err) {
+      config.notify("ERROR_run_sync", { error: err, componentId: init.dxId });
+    }
 
     transitioning = false;
     reconcile();
   };
 
   const deactivate = (): void => {
-    executionToken++;
-    actualState = "inactive";
+    const init = currentInit!;
 
     sub?.off();
     sub = null;
 
-    const storeToUse = stores?.kernel ?? kernelStore;
-    const storeActiveDxIds = activeDxIdsByStore.get(storeToUse);
-    storeActiveDxIds?.delete(init.dxId);
-
     try {
-      const beforeOffResult = beforeOff(init) as any;
-      if (beforeOffResult instanceof Promise) {
-        throw new Error(`[dx] beforeOff must be synchronous in component "${init.dxId}". Return value was a Promise. Move async work into run().`);
-      }
-    } catch (error) {
-      notify("ERROR_beforeOff", { error, componentId: init.dxId });
+      const r = (config as any).onUnmount?.(init);
+      if ((r as any) instanceof Promise) throw new Error("onUnmount must be synchronous");
+    } catch (err) {
+      config.notify("ERROR_run_sync", { error: err, componentId: init.dxId });
     }
 
+    try {
+      const r = (config as any).beforeOff?.(init);
+      if ((r as any) instanceof Promise) throw new Error("beforeOff must be synchronous");
+    } catch (err) {
+      config.notify("ERROR_beforeOff", { error: err, componentId: init.dxId });
+    } finally {
+      stores.kernel.activeDxIds.delete(init.dxId);
+      actualState = "inactive";
+    }
+
+    currentInit = null;
     transitioning = false;
     reconcile();
   };
@@ -436,22 +346,13 @@ export function dx<
     desiredState === "active" ? activate() : deactivate();
   };
 
-  const on = (): void => {
-    desiredState = "active";
-    reconcile();
-  };
-
-  const off = (): void => {
-    desiredState = "inactive";
-    reconcile();
-  };
-
-  const claim = (): { on: () => void; off: () => void } => {
-    if (claimed) {
-      throw new Error(`[dx] Component "${init.dxId}" has already been claimed. Only one owner may call on()/off() per dx instance.`);
-    }
+  const claim = () => {
+    if (claimed) throw new Error(`[dx] "${config.init.dxId}" already claimed.`);
     claimed = true;
-    return { on, off };
+    return {
+      on:  () => { desiredState = "active";   reconcile(); },
+      off: () => { desiredState = "inactive"; reconcile(); },
+    };
   };
 
   return { claim };

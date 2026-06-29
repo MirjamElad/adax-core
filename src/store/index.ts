@@ -19,6 +19,7 @@ class KernelStore {
     }
     isDefaultKernelStore: boolean = true;
     runAllQueries: boolean = false;
+    activeDxIds: Set<string> = new Set();
     // What writeFn cause what queryFn to run
     rules: Map<WriteFn, OnWriteRule>;
     reverseRules: Map<QueryFn, Set<WriteFn>>;

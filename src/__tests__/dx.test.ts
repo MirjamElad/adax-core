@@ -39,23 +39,22 @@ describe('dx WITHOUT rules (Browser)', () => {
   beforeEach(() => resetStore());
   afterEach(() => resetStore());
 
-  it('run fires immediately on activation with initial snapshot', () => {
-    const run = createSpy();
+  it('onUpdate fires immediately on activation with initial snapshot', () => {
+    const onUpdate = createSpy();
 
     const component = dx({
       init: { dxId: 'browser-01', team: 'right' },
       queryFn: getCounterByTeam,
-      run: (_i: any, r: any, ctx: any) => run(r.data, ctx.runIndex),
+      onUpdate: (_i: any, r: any, ctx: any) => onUpdate(r.data, ctx.runIndex),
       notify: noop,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
 
-    expect(run).toHaveBeenCalledTimes(1);
-    expect(run).toHaveBeenLastCalledWith(0, 0);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenLastCalledWith(0, 0);
 
     off();
   });
@@ -65,37 +64,35 @@ describe('dx WITHOUT rules (Browser)', () => {
     incrementCounterByTeam({ team: 'right' });
     await wait();
 
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component = dx({
       init: { dxId: 'browser-02', team: 'right' },
       queryFn: getCounterByTeam,
-      run: (_i: any, r: any) => run(r.data),
+      onUpdate: (_i: any, r: any) => onUpdate(r.data),
       notify: noop,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
 
-    expect(run).toHaveBeenCalledTimes(1);
-    expect(run).toHaveBeenLastCalledWith(2);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenLastCalledWith(2);
 
     off();
   });
 
   it('reacts to changes AFTER subscription', async () => {
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component = dx({
       init: { dxId: 'browser-03', team: 'right' },
       queryFn: getCounterByTeam,
-      run: (_i: any, r: any) => run(r.data),
+      onUpdate: (_i: any, r: any) => onUpdate(r.data),
       notify: noop,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
@@ -103,21 +100,20 @@ describe('dx WITHOUT rules (Browser)', () => {
     await wait();
     trigger(incrementCounterByTeam, { team: 'right' });
     await wait();
-    expect(run.mock.calls.length).toEqual(3);
+    expect(onUpdate.mock.calls.length).toEqual(3);
     off();
   });
 
   it('ignores unrelated store changes', async () => {
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component = dx({
       init: { dxId: 'browser-04', team: 'right' },
       queryFn: getCounterByTeam,
-      run: (_i: any, r: any) => run(r.data),
+      onUpdate: (_i: any, r: any) => onUpdate(r.data),
       notify: noop,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
@@ -125,7 +121,7 @@ describe('dx WITHOUT rules (Browser)', () => {
     trigger(incrementCounterByTeam, { team: 'left' });
     await wait();
 
-    expect(run).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
     off();
   });
 });
@@ -136,19 +132,18 @@ describe('dx WITH rules', () => {
   beforeEach(() => resetStore());
   afterEach(() => clearAllRules());
 
-  it('rule forces run even if data unchanged', async () => {
+  it('rule forces onUpdate even if data unchanged', async () => {
     addRule({ writeFn: incrementCounterByTeam, queryFn: getCounterByTeam });
 
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component = dx({
       init: { dxId: 'rule-01', team: 'right' },
       queryFn: getCounterByTeam,
-      run: (_i: any, r: any) => run(r.data),
+      onUpdate: (_i: any, r: any) => onUpdate(r.data),
       notify: noop,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
@@ -156,7 +151,7 @@ describe('dx WITH rules', () => {
     trigger(incrementCounterByTeam, { team: 'left' });
     await wait();
 
-    expect(run).toHaveBeenCalledTimes(2);
+    expect(onUpdate).toHaveBeenCalledTimes(2);
     off();
   });
 });
@@ -171,37 +166,34 @@ describe('dx Ownership & Uniqueness Guards', () => {
     const component = dx({
       init: { dxId: 'ownership-01', team: 'right' },
       queryFn: getCounterByTeam,
-      run: noop,
+      onUpdate: noop,
       notify: noop,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     component.claim();
-    expect(() => component.claim()).toThrow('already been claimed');
+    expect(() => component.claim()).toThrow('already claimed');
   });
 
   it('fails activation if dxId is already active by another instance', () => {
     const notify = createSpy();
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component1 = dx({
       init: { dxId: 'ownership-02', team: 'right' },
       queryFn: getCounterByTeam,
-      run,
+      onUpdate,
       notify,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const component2 = dx({
       init: { dxId: 'ownership-02', team: 'right' },
       queryFn: getCounterByTeam,
-      run,
+      onUpdate,
       notify,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on: on1, off: off1 } = component1.claim();
     const { on: on2 } = component2.claim();
@@ -217,41 +209,39 @@ describe('dx Ownership & Uniqueness Guards', () => {
       })
     );
 
-    expect(run).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
     off1();
   });
 
   it('allows sequential reuse of the same dxId after the first is deactivated', () => {
     const notify = createSpy();
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component1 = dx({
       init: { dxId: 'ownership-03', team: 'right' },
       queryFn: getCounterByTeam,
-      run,
+      onUpdate,
       notify,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const component2 = dx({
       init: { dxId: 'ownership-03', team: 'right' },
       queryFn: getCounterByTeam,
-      run,
+      onUpdate,
       notify,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on: on1, off: off1 } = component1.claim();
     const { on: on2, off: off2 } = component2.claim();
 
     on1();
-    expect(run).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
     off1();
     on2();
     expect(notify).not.toHaveBeenCalled();
-    expect(run).toHaveBeenCalledTimes(2);
+    expect(onUpdate).toHaveBeenCalledTimes(2);
     off2();
   });
 });
@@ -269,13 +259,12 @@ describe('dx Lifecycle Hooks', () => {
     const component = dx({
       init: { dxId: 'lifecycle-01', team: 'right' },
       queryFn: getCounterByTeam,
-      run: noop,
+      onUpdate: noop,
       notify: noop,
       onEmit: noop,
       beforeOn,
       beforeOff,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     expect(beforeOn).not.toHaveBeenCalled();
@@ -289,73 +278,70 @@ describe('dx Lifecycle Hooks', () => {
   it('handles beforeOn synchronous failure, triggers onBeforeOnFail, and remains inactive', async () => {
     const notify = createSpy();
     const onBeforeOnFail = createSpy();
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component = dx({
       init: { dxId: 'lifecycle-02', team: 'right' },
       queryFn: getCounterByTeam,
-      run,
+      onUpdate,
       notify,
       onEmit: noop,
       beforeOn: () => { throw new Error("Sync boom!"); },
       onBeforeOnFail,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
-    on();
+    expect(() => on()).toThrow("Sync boom!");
 
     expect(notify).toHaveBeenCalledTimes(1);
     expect(notify).toHaveBeenCalledWith("ERROR_beforeOn", expect.objectContaining({
       error: expect.objectContaining({ message: "Sync boom!" })
     }));
     expect(onBeforeOnFail).toHaveBeenCalledTimes(1);
-    expect(run).not.toHaveBeenCalled();
+    expect(onUpdate).not.toHaveBeenCalled();
 
     trigger(incrementCounterByTeam, { team: 'right' });
     await wait();
-    expect(run).not.toHaveBeenCalled();
+    expect(onUpdate).not.toHaveBeenCalled();
     off();
   });
 
   it('aborts activation if beforeOn returns a Promise', () => {
     const notify = createSpy();
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component = dx({
       init: { dxId: 'lifecycle-03', team: 'right' },
       queryFn: getCounterByTeam,
-      run,
+      onUpdate,
       notify,
       onEmit: noop,
       beforeOn: () => Promise.resolve(),
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
-    on();
+    expect(() => on()).toThrow("must be synchronous");
 
     expect(notify).toHaveBeenCalledTimes(1);
     expect(notify).toHaveBeenCalledWith("ERROR_beforeOn", expect.objectContaining({
       error: expect.objectContaining({ message: expect.stringContaining("must be synchronous") })
     }));
-    expect(run).not.toHaveBeenCalled();
+    expect(onUpdate).not.toHaveBeenCalled();
     off();
   });
 
   it('aborts deactivation and notifies if beforeOff returns a Promise', () => {
     const notify = createSpy();
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component = dx({
       init: { dxId: 'lifecycle-04', team: 'right' },
       queryFn: getCounterByTeam,
-      run,
+      onUpdate,
       notify,
       onEmit: noop,
       beforeOff: () => new Promise(() => {}),
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
@@ -381,11 +367,10 @@ describe('dx RunContext Object', () => {
     const component = dx({
       init: { dxId: 'ctx-01', team: 'right' },
       queryFn: getCounterByTeam,
-      run: (_i: any, _r: any, ctx: any) => { runIndexes.push(ctx.runIndex); },
+      onUpdate: (_i: any, _r: any, ctx: any) => { runIndexes.push(ctx.runIndex); },
       notify: noop,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
@@ -402,80 +387,59 @@ describe('dx RunContext Object', () => {
     off();
   });
 
-  it('isActiveExecution() returns false if off() is called during async run', async () => {
-    let capturedIsActive: boolean | null = null;
+  it('isFirstRun() returns true only on the first run after activation', async () => {
+    const firstRunFlags: boolean[] = [];
 
     const component = dx({
       init: { dxId: 'ctx-02', team: 'right' },
       queryFn: getCounterByTeam,
-      run: async (_i: any, _r: any, ctx: any) => {
-        await wait(20);
-        capturedIsActive = ctx.isActiveExecution();
-      },
+      onUpdate: (_i: any, _r: any, ctx: any) => { firstRunFlags.push(ctx.isFirstRun()); },
       notify: noop,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
+    expect(firstRunFlags).toEqual([true]);
+    trigger(incrementCounterByTeam, { team: 'right' });
+    await wait();
+    expect(firstRunFlags).toEqual([true, false]);
+    trigger(incrementCounterByTeam, { team: 'right' });
+    await wait();
+    expect(firstRunFlags).toEqual([true, false, false]);
     off();
-    await wait(30);
-    expect(capturedIsActive).toBe(false);
-  });
-
-  it('isLatestRun() returns false if a subsequent trigger superseded the current async run', async () => {
-    const capturedIsLatest: boolean[] = [];
-
-    const component = dx({
-      init: { dxId: 'ctx-03', team: 'right' },
-      queryFn: getCounterByTeam,
-      run: async (_i: any, _r: any, ctx: any) => {
-        await wait(10);
-        capturedIsLatest.push(ctx.isLatestRun());
-      },
-      notify: noop,
-      onEmit: noop,
-      __dev__: false,
-    } as any);
-
-    const { on, off } = component.claim();
     on();
-    trigger(incrementCounterByTeam, { team: 'right' });
-    trigger(incrementCounterByTeam, { team: 'right' });
-    await wait(30);
-    expect(capturedIsLatest).toEqual([false, false, true]);
+    expect(firstRunFlags).toEqual([true, false, false, true]);
     off();
   });
 });
 
-// ─── Error Handling Inside run() ──────────────────────────────────────────────
+// ─── Error Handling Inside onUpdate() ──────────────────────────────────────────
 
-describe('dx Error Handling Inside run()', () => {
+describe('dx Error Handling Inside onUpdate()', () => {
   beforeEach(() => resetStore());
   afterEach(() => resetStore());
 
-  it('catches synchronous throws in run(), notifies error, and keeps component active', async () => {
+  it('catches synchronous throws in onUpdate(), notifies error, and keeps component active', async () => {
     const notify = createSpy();
     let callCount = 0;
 
     const component = dx({
       init: { dxId: 'err-01', team: 'right' },
       queryFn: getCounterByTeam,
-      run: () => {
+      onUpdate: () => {
         callCount++;
-        if (callCount === 1) throw new Error("Sync run boom!");
+        if (callCount === 1) throw new Error("Sync onUpdate boom!");
       },
       notify,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
     expect(notify).toHaveBeenCalledTimes(1);
     expect(notify).toHaveBeenCalledWith("ERROR_run_sync", expect.objectContaining({
-      error: expect.objectContaining({ message: "Sync run boom!" })
+      error: expect.objectContaining({ message: "Sync onUpdate boom!" })
     }));
     trigger(incrementCounterByTeam, { team: 'right' });
     await wait();
@@ -483,28 +447,26 @@ describe('dx Error Handling Inside run()', () => {
     off();
   });
 
-  it('catches async rejections in run(), notifies error, and keeps component active', async () => {
+  it('catches errors in onUpdate that return a Promise and notifies ERROR_run_sync', async () => {
     const notify = createSpy();
     let callCount = 0;
 
     const component = dx({
       init: { dxId: 'err-02', team: 'right' },
       queryFn: getCounterByTeam,
-      run: async () => {
+      onUpdate: () => {
         callCount++;
-        if (callCount === 1) return Promise.reject(new Error("Async run boom!"));
+        if (callCount === 1) return Promise.resolve();
       },
       notify,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
-    await wait();
     expect(notify).toHaveBeenCalledTimes(1);
-    expect(notify).toHaveBeenCalledWith("ERROR_run_async", expect.objectContaining({
-      error: expect.objectContaining({ message: "Async run boom!" })
+    expect(notify).toHaveBeenCalledWith("ERROR_run_sync", expect.objectContaining({
+      error: expect.objectContaining({ message: expect.stringContaining("must be synchronous") })
     }));
     trigger(incrementCounterByTeam, { team: 'right' });
     await wait();
@@ -519,70 +481,67 @@ describe('dx adax-core Options Passthrough', () => {
   beforeEach(() => resetStore());
   afterEach(() => resetStore());
 
-  it('passing skipInitialQuerying: true passes undefined data to the initial run', async () => {
-    const run = createSpy();
+  it('passing skipInitialQuerying: true passes undefined data to the initial onUpdate', async () => {
+    const onUpdate = createSpy();
     const notify = createSpy();
 
     const component = dx({
       init: { dxId: 'opts-01', team: 'right' },
       queryFn: getCounterByTeam,
-      run: (_i: any, r: any) => run(r.data),
+      onUpdate: (_i: any, r: any) => onUpdate(r.data),
       notify,
       onEmit: noop,
       queryOptions: { skipInitialQuerying: true },
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
     expect(notify).not.toHaveBeenCalled();
-    expect(run).toHaveBeenCalledTimes(1);
-    expect(run).toHaveBeenLastCalledWith(undefined);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenLastCalledWith(undefined);
     trigger(incrementCounterByTeam, { team: 'right' });
     await wait();
-    expect(run).toHaveBeenCalledTimes(2);
-    expect(run).toHaveBeenLastCalledWith(1);
+    expect(onUpdate).toHaveBeenCalledTimes(2);
+    expect(onUpdate).toHaveBeenLastCalledWith(1);
     off();
   });
 
-  it('respects hasResultChanged returning false to prevent subsequent runs', async () => {
-    const run = createSpy();
+  it('respects hasResultChanged returning false to prevent subsequent onUpdate calls', async () => {
+    const onUpdate = createSpy();
     const notify = createSpy();
 
     const component = dx({
       init: { dxId: 'opts-02', team: 'right' },
       queryFn: getCounterByTeam,
-      run: (_i: any, r: any) => run(r.data),
+      onUpdate: (_i: any, r: any) => onUpdate(r.data),
       notify,
       onEmit: noop,
       queryOptions: { hasResultChanged: () => false },
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
     expect(notify).not.toHaveBeenCalled();
-    expect(run).toHaveBeenCalledTimes(1);
-    expect(run).toHaveBeenLastCalledWith(0);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenLastCalledWith(0);
     trigger(incrementCounterByTeam, { team: 'right' });
     await wait();
-    expect(run).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
     off();
   });
 
   it('catches adax-core invalid queryOptions (debounce + throttle) and notifies ERROR', () => {
     const notify = createSpy();
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component = dx({
       init: { dxId: 'opts-03', team: 'right' },
       queryFn: getCounterByTeam,
-      run,
+      onUpdate,
       notify,
       onEmit: noop,
       queryOptions: { debounceMs: 100, throttleMs: 100 },
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
@@ -590,48 +549,7 @@ describe('dx adax-core Options Passthrough', () => {
     expect(notify).toHaveBeenCalledWith("ERROR_subscribe", expect.objectContaining({
       error: expect.objectContaining({ message: expect.stringContaining("Cannot have both debounce and throttle") })
     }));
-    expect(run).not.toHaveBeenCalled();
-    off();
-  });
-});
-
-// ─── DEV Mode Warnings ────────────────────────────────────────────────────
-
-describe('dx DEV Mode Warnings', () => {
-  let warnSpy: jest.SpiedFunction<typeof console.warn>;
-  
-  beforeEach(() => {
-    resetStore();
-    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-  });
-  
-  afterEach(() => {
-    resetStore();
-    warnSpy.mockRestore();
-  });
-
-  it('warns if trigger() is called synchronously inside a TRIGGERED run()', () => {
-    let runCount = 0;
-    
-    const component = dx({
-      init: { dxId: 'dev-01', team: 'right' },
-      queryFn: getCounterByTeam,
-      run: () => {
-        runCount++;
-        if (runCount === 2) {
-          trigger(incrementCounterByTeam, { team: 'right' });
-        }
-      },
-      notify: noop,
-      onEmit: noop,
-      __dev__: true,
-    } as any);
-
-    const { on, off } = component.claim();
-    on();
-    trigger(incrementCounterByTeam, { team: 'right' });
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Re-entrant run detected'));
+    expect(onUpdate).not.toHaveBeenCalled();
     off();
   });
 });
@@ -644,21 +562,20 @@ describe('dx Lifecycle Hook Edge Cases', () => {
 
   it('calls notify twice if both beforeOn and onBeforeOnFail throw', () => {
     const notify = createSpy();
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component = dx({
       init: { dxId: 'lifecycle-edge-01', team: 'right' },
       queryFn: getCounterByTeam,
-      run,
+      onUpdate,
       notify,
       onEmit: noop,
       beforeOn: () => { throw new Error("beforeOn failed!"); },
       onBeforeOnFail: () => { throw new Error("onBeforeOnFail also failed!"); },
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
-    on();
+    expect(() => on()).toThrow("beforeOn failed!");
     expect(notify).toHaveBeenCalledTimes(2);
     expect(notify).toHaveBeenNthCalledWith(1, "ERROR_beforeOn", expect.objectContaining({
       error: expect.objectContaining({ message: "beforeOn failed!" })
@@ -666,27 +583,26 @@ describe('dx Lifecycle Hook Edge Cases', () => {
     expect(notify).toHaveBeenNthCalledWith(2, "ERROR_onBeforeOnFail", expect.objectContaining({
       error: expect.objectContaining({ message: "onBeforeOnFail also failed!" })
     }));
-    expect(run).not.toHaveBeenCalled();
+    expect(onUpdate).not.toHaveBeenCalled();
     off();
   });
 
   it('completes deactivation even if beforeOff throws', async () => {
     const notify = createSpy();
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component = dx({
       init: { dxId: 'lifecycle-edge-02', team: 'right' },
       queryFn: getCounterByTeam,
-      run,
+      onUpdate,
       notify,
       onEmit: noop,
       beforeOff: () => { throw new Error("beforeOff failed!"); },
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
-    expect(run).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
     off();
     expect(notify).toHaveBeenCalledTimes(1);
     expect(notify).toHaveBeenCalledWith("ERROR_beforeOff", expect.objectContaining({
@@ -694,67 +610,7 @@ describe('dx Lifecycle Hook Edge Cases', () => {
     }));
     trigger(incrementCounterByTeam, { team: 'right' });
     await wait();
-    expect(run).toHaveBeenCalledTimes(1);
-  });
-});
-
-// ─── RunContext Nuances ────────────────────────────────────────────────────
-
-describe('dx RunContext Nuances', () => {
-  beforeEach(() => resetStore());
-  afterEach(() => resetStore());
-
-  it('runToken increments monotonically and NEVER resets across activations', async () => {
-    const runTokens: number[] = [];
-
-    const component = dx({
-      init: { dxId: 'ctx-nuance-01', team: 'right' },
-      queryFn: getCounterByTeam,
-      run: (_i: any, _r: any, ctx: any) => { runTokens.push(ctx.runToken); },
-      notify: noop,
-      onEmit: noop,
-      __dev__: false,
-    } as any);
-
-    const { on, off } = component.claim();
-    on();
-    trigger(incrementCounterByTeam, { team: 'right' });
-    await wait();
-    trigger(incrementCounterByTeam, { team: 'right' });
-    await wait();
-    off();
-    on();
-    trigger(incrementCounterByTeam, { team: 'right' });
-    await wait();
-    expect(runTokens).toEqual([1, 2, 3, 4, 5]);
-    off();
-  });
-
-  it('synchronous side effects BEFORE an await cannot be guarded by off()', async () => {
-    const syncEffects: string[] = [];
-    const guardedEffects: string[] = [];
-
-    const component = dx({
-      init: { dxId: 'ctx-nuance-02', team: 'right' },
-      queryFn: getCounterByTeam,
-      run: async (_i: any, _r: any, ctx: any) => {
-        syncEffects.push('sync-ran');
-        await wait(20);
-        if (ctx.isActiveExecution()) {
-          guardedEffects.push('guarded-ran');
-        }
-      },
-      notify: noop,
-      onEmit: noop,
-      __dev__: false,
-    } as any);
-
-    const { on, off } = component.claim();
-    on();
-    off();
-    await wait(30);
-    expect(syncEffects).toEqual(['sync-ran']);
-    expect(guardedEffects).toEqual([]);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -766,26 +622,24 @@ describe('dx Advanced adax-core Options & Integration', () => {
 
   it('silently overrides cmpId in queryOptions with init.dxId', () => {
     const notify = createSpy();
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component1 = dx({
       init: { dxId: 'cmp-override-real', team: 'right' },
       queryFn: getCounterByTeam,
-      run,
+      onUpdate,
       notify,
       onEmit: noop,
       queryOptions: { cmpId: 'cmp-override-fake' },
-      __dev__: false,
-    } as any);
+    });
 
     const component2 = dx({
       init: { dxId: 'cmp-override-real', team: 'right' },
       queryFn: getCounterByTeam,
-      run,
+      onUpdate,
       notify,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on: on1, off: off1 } = component1.claim();
     const { on: on2 } = component2.claim();
@@ -806,53 +660,51 @@ describe('dx Advanced adax-core Options & Integration', () => {
       skip: (writeArgs: any, readArgs: any) => writeArgs.team !== readArgs.team
     });
 
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component = dx({
       init: { dxId: 'rule-skip-01', team: 'right' },
       queryFn: getCounterByTeam,
-      run: (_i: any, r: any) => run(r.data),
+      onUpdate: (_i: any, r: any) => onUpdate(r.data),
       notify: noop,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
     trigger(incrementCounterByTeam, { team: 'left' });
     await wait();
-    expect(run).toHaveBeenCalledTimes(1);
-    expect(run).toHaveBeenLastCalledWith(0);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenLastCalledWith(0);
     trigger(incrementCounterByTeam, { team: 'right' });
     await wait();
-    expect(run).toHaveBeenCalledTimes(2);
-    expect(run).toHaveBeenLastCalledWith(1);
+    expect(onUpdate).toHaveBeenCalledTimes(2);
+    expect(onUpdate).toHaveBeenLastCalledWith(1);
     off();
   });
   
   it('isolates subscriptions and triggers using a custom KernelStore', async () => {
     const myKernel = new KernelStore();
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component = dx({
       init: { dxId: 'isolated-01', team: 'right' },
       queryFn: getCounterByTeam, 
-      run: (_i: any, r: any) => run(r.data),
+      onUpdate: (_i: any, r: any) => onUpdate(r.data),
       notify: noop,
       onEmit: noop,
-      stores: { kernel: myKernel }, 
-      __dev__: false,
-    } as any);
+      stores: { kernel: myKernel },
+    });
 
     const { on, off } = component.claim();
     on();
     trigger(incrementCounterByTeam, { team: 'right' }, { kernel: myKernel });
     await wait();
-    expect(run).toHaveBeenCalledTimes(2);
-    expect(run).toHaveBeenLastCalledWith(1);
+    expect(onUpdate).toHaveBeenCalledTimes(2);
+    expect(onUpdate).toHaveBeenLastCalledWith(1);
     trigger(incrementCounterByTeam, { team: 'right' });
     await wait();
-    expect(run).toHaveBeenCalledTimes(2);
+    expect(onUpdate).toHaveBeenCalledTimes(2);
     off();
   });
 });
@@ -865,17 +717,16 @@ describe('dx Reconciler & State Coalescing', () => {
 
   it('calling on() while already active is a no-op and does not re-run hooks', () => {
     const beforeOn = createSpy();
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component = dx({
       init: { dxId: 'reconciler-01', team: 'right' },
       queryFn: getCounterByTeam,
-      run,
+      onUpdate,
       notify: noop,
       onEmit: noop,
       beforeOn,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
@@ -891,12 +742,11 @@ describe('dx Reconciler & State Coalescing', () => {
     const component = dx({
       init: { dxId: 'reconciler-02', team: 'right' },
       queryFn: getCounterByTeam,
-      run: noop,
+      onUpdate: noop,
       notify: noop,
       onEmit: noop,
       beforeOff,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
@@ -909,18 +759,17 @@ describe('dx Reconciler & State Coalescing', () => {
   it('rapid synchronous on() -> off() -> on() leaves component active and correctly executes hooks', async () => {
     const beforeOn = createSpy();
     const beforeOff = createSpy();
-    const run = createSpy();
+    const onUpdate = createSpy();
 
     const component = dx({
       init: { dxId: 'reconciler-03', team: 'right' },
       queryFn: getCounterByTeam,
-      run,
+      onUpdate,
       notify: noop,
       onEmit: noop,
       beforeOn,
       beforeOff,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
@@ -928,10 +777,10 @@ describe('dx Reconciler & State Coalescing', () => {
     on();
     expect(beforeOn).toHaveBeenCalledTimes(2);
     expect(beforeOff).toHaveBeenCalledTimes(1);
-    expect(run).toHaveBeenCalledTimes(2);
+    expect(onUpdate).toHaveBeenCalledTimes(2);
     trigger(incrementCounterByTeam, { team: 'right' });
     await wait();
-    expect(run).toHaveBeenCalledTimes(3);
+    expect(onUpdate).toHaveBeenCalledTimes(3);
     off();
   });
 });
@@ -942,15 +791,14 @@ describe('dx Error Propagation', () => {
   beforeEach(() => resetStore());
   afterEach(() => resetStore());
 
-  it('propagates the error if notify() throws when a sync run() fails', () => {
+  it('propagates the error if notify() throws when onUpdate() fails', () => {
     const component = dx({
       init: { dxId: 'err-prop-01', team: 'right' },
       queryFn: getCounterByTeam,
-      run: () => { throw new Error("Run failed!"); },
+      onUpdate: () => { throw new Error("onUpdate failed!"); },
       notify: () => { throw new Error("Notify exploded!"); },
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     expect(() => on()).toThrow("Notify exploded!");
@@ -961,12 +809,11 @@ describe('dx Error Propagation', () => {
     const component = dx({
       init: { dxId: 'err-prop-02', team: 'right' },
       queryFn: getCounterByTeam,
-      run: noop,
+      onUpdate: noop,
       onEmit: noop,
       beforeOn: () => { throw new Error("beforeOn failed!"); },
       notify: () => { throw new Error("Notify exploded!"); },
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     expect(() => on()).toThrow("Notify exploded!");
@@ -977,272 +824,15 @@ describe('dx Error Propagation', () => {
     const component = dx({
       init: { dxId: 'err-prop-03', team: 'right' },
       queryFn: getCounterByTeam,
-      run: noop,
+      onUpdate: noop,
       onEmit: noop,
       beforeOff: () => { throw new Error("beforeOff failed!"); },
       notify: () => { throw new Error("Notify exploded!"); },
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
     expect(() => off()).toThrow("Notify exploded!");
-  });
-});
-
-// ─── resolveDev & DEV invokeRun branches ──────────────────────────────────
-
-describe('dx resolveDev & DEV invokeRun branches', () => {
-  let warnSpy: jest.SpiedFunction<typeof console.warn>;
-  const originalEnv = process.env;
-  
-  beforeEach(() => {
-    resetStore();
-    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    process.env = { ...originalEnv, NODE_ENV: undefined };
-  });
-  
-  afterEach(() => {
-    resetStore();
-    warnSpy.mockRestore();
-    process.env = originalEnv;
-  });
-
-  it('resolves DEV to false if __dev__ is omitted in a non-Node environment', () => {
-    let runCount = 0;
-    const component = dx({
-      init: { dxId: 'dev-resolve-01', team: 'right' },
-      queryFn: getCounterByTeam,
-      run: () => {
-        runCount++;
-        if (runCount === 2) trigger(incrementCounterByTeam, { team: 'right' });
-      },
-      notify: noop,
-      onEmit: noop,
-    } as any);
-
-    const { on, off } = component.claim();
-    on();
-    trigger(incrementCounterByTeam, { team: 'right' });
-    expect(warnSpy).not.toHaveBeenCalled();
-    off();
-  });
-
-  it('resolves DEV to true via process.env.NODE_ENV === "development"', () => {
-    process.env.NODE_ENV = 'development';
-    let runCount = 0;
-    const component = dx({
-      init: { dxId: 'dev-resolve-02', team: 'right' },
-      queryFn: getCounterByTeam,
-      run: () => {
-        runCount++;
-        if (runCount === 2) trigger(incrementCounterByTeam, { team: 'right' });
-      },
-      notify: noop,
-      onEmit: noop,
-    } as any);
-
-    const { on, off } = component.claim();
-    on();
-    trigger(incrementCounterByTeam, { team: 'right' });
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Re-entrant run detected'));
-    off();
-  });
-
-  it('resolves DEV to false if process.env.NODE_ENV === "production"', () => {
-    process.env.NODE_ENV = 'production';
-    let runCount = 0;
-    const component = dx({
-      init: { dxId: 'dev-resolve-03', team: 'right' },
-      queryFn: getCounterByTeam,
-      run: () => {
-        runCount++;
-        if (runCount === 2) trigger(incrementCounterByTeam, { team: 'right' });
-      },
-      notify: noop,
-      onEmit: noop,
-    } as any);
-
-    const { on, off } = component.claim();
-    on();
-    trigger(incrementCounterByTeam, { team: 'right' });
-    expect(warnSpy).not.toHaveBeenCalled();
-    off();
-  });
-
-  it('samples late callback warnings: fires on 1st and 100th occurrences', () => {
-    const subscribeSpy = jest.spyOn(adaxCore, 'subscribe').mockImplementation(((readTrigger: any) => ({
-      result: { data: 0, prevData: 0, version: 0, writeFn: undefined, writeParamsObj: undefined },
-      on: jest.fn(),
-      off: jest.fn(),
-    })) as any);
-
-    const component = dx({
-      init: { dxId: 'dev-modulo-01', team: 'right' },
-      queryFn: getCounterByTeam,
-      run: noop,
-      notify: noop,
-      onEmit: noop,
-      __dev__: true,
-    } as any);
-
-    const { on, off } = component.claim();
-    on();
-    off();
-    const readTrigger = subscribeSpy.mock.calls[0][0];
-    for (let i = 0; i < 100; i++) {
-      readTrigger({ 
-        data: 1, 
-        prevData: 0, 
-        version: 1,
-        writeFn: undefined,
-        writeParamsObj: undefined
-      });
-    }
-    expect(warnSpy).toHaveBeenCalledTimes(2);
-    expect(warnSpy).toHaveBeenNthCalledWith(2, expect.stringContaining('(total: 100)'));
-    subscribeSpy.mockRestore();
-  });
-
-  it('warns if a debounced callback arrives after off() (late callback)', async () => {
-    const component = dx({
-      init: { dxId: 'dev-02', team: 'right' },
-      queryFn: getCounterByTeam,
-      run: noop,
-      notify: noop,
-      onEmit: noop,
-      queryOptions: { debounceMs: 50 }, 
-      __dev__: true,
-    } as any);
-
-    const { on, off } = component.claim();
-    on();
-    trigger(incrementCounterByTeam, { team: 'right' });
-    off();
-    await wait(100);
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Late callback discarded'));
-  });
-});
-
-// ─── throttleMs ───────────────────────────────────────────────────────────
-
-describe('dx throttleMs option', () => {
-  beforeEach(() => resetStore());
-  afterEach(() => resetStore());
-
-  it('fires immediately on first trigger then rate-limits subsequent calls', async () => {
-    const run = createSpy();
-
-    const component = dx({
-      init: { dxId: 'throttle-01', team: 'right' },
-      queryFn: getCounterByTeam,
-      run: (_i: any, r: any) => run(r.data),
-      notify: noop,
-      onEmit: noop,
-      queryOptions: { throttleMs: 100 },
-      __dev__: false,
-    } as any);
-
-    const { on, off } = component.claim();
-    on();
-    trigger(incrementCounterByTeam, { team: 'right' });
-    await wait(10);
-    expect(run).toHaveBeenCalledTimes(2);
-    trigger(incrementCounterByTeam, { team: 'right' });
-    await wait(10);
-    expect(run).toHaveBeenCalledTimes(2);
-    await wait(120);
-    expect(run).toHaveBeenCalledTimes(3);
-    trigger(incrementCounterByTeam, { team: 'right' });
-    await wait(10);
-    expect(run).toHaveBeenCalledTimes(4);
-    off();
-  });
-});
-
-// ─── onBeforeOnFail NOT called when subscribe() throws ────────────────────
-
-describe('dx onBeforeOnFail boundary', () => {
-  beforeEach(() => resetStore());
-  afterEach(() => resetStore());
-
-  it('does NOT call onBeforeOnFail when subscribe() throws', () => {
-    const notify = createSpy();
-    const onBeforeOnFail = createSpy();
-    const run = createSpy();
-
-    const component = dx({
-      init: { dxId: 'subscribe-fail-01', team: 'right' },
-      queryFn: getCounterByTeam,
-      run,
-      notify,
-      onEmit: noop,
-      onBeforeOnFail,
-      queryOptions: { debounceMs: 100, throttleMs: 100 },
-      __dev__: false,
-    } as any);
-
-    const { on, off } = component.claim();
-    on();
-    expect(notify).toHaveBeenCalledTimes(1);
-    expect(notify).toHaveBeenCalledWith('ERROR_subscribe', expect.objectContaining({
-      error: expect.objectContaining({ message: expect.stringContaining('Cannot have both debounce and throttle') })
-    }));
-    expect(onBeforeOnFail).not.toHaveBeenCalled();
-    expect(run).not.toHaveBeenCalled();
-    off();
-  });
-});
-
-// ─── Late callback counter resets on re-activation ────────────────────────
-
-describe('dx DEV late callback counter reset', () => {
-  let warnSpy: jest.SpiedFunction<typeof console.warn>;
-
-  beforeEach(() => {
-    resetStore();
-    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    resetStore();
-    warnSpy.mockRestore();
-  });
-
-  it('resets droppedRunCount on re-activation so the 1st post-reactivation drop warns', () => {
-    const subscribeSpy = jest.spyOn(adaxCore, 'subscribe').mockImplementation(((readTrigger: any) => ({
-      result: { data: 0, prevData: 0, version: 0, writeFn: undefined, writeParamsObj: undefined },
-      on: jest.fn(),
-      off: jest.fn(),
-    })) as any);
-
-    const component = dx({
-      init: { dxId: 'dev-reset-01', team: 'right' },
-      queryFn: getCounterByTeam,
-      run: noop,
-      notify: noop,
-      onEmit: noop,
-      __dev__: true,
-    } as any);
-
-    const { on, off } = component.claim();
-    on();
-    off();
-    const readTrigger = subscribeSpy.mock.calls[0][0] as any;
-    for (let i = 0; i < 99; i++) {
-      readTrigger({ data: 1, prevData: 0, version: 1, writeFn: undefined, writeParamsObj: undefined });
-    }
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    on();
-    off();
-    const readTrigger2 = subscribeSpy.mock.calls[1][0] as any;
-    readTrigger2({ data: 1, prevData: 0, version: 1, writeFn: undefined, writeParamsObj: undefined });
-    expect(warnSpy).toHaveBeenCalledTimes(2);
-    readTrigger2({ data: 1, prevData: 0, version: 1, writeFn: undefined, writeParamsObj: undefined });
-    expect(warnSpy).toHaveBeenCalledTimes(2);
-    subscribeSpy.mockRestore();
   });
 });
 
@@ -1252,17 +842,16 @@ describe('dx result.prevData', () => {
   beforeEach(() => resetStore());
   afterEach(() => resetStore());
 
-  it('prevData reflects the value from the previous run', async () => {
+  it('prevData reflects the value from the previous onUpdate call', async () => {
     const snapshots: { data: number; prevData: number }[] = [];
 
     const component = dx({
       init: { dxId: 'prevdata-01', team: 'right' },
       queryFn: getCounterByTeam,
-      run: (_i: any, r: any) => snapshots.push({ data: r.data, prevData: r.prevData }),
+      onUpdate: (_i: any, r: any) => snapshots.push({ data: r.data, prevData: r.prevData }),
       notify: noop,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
@@ -1288,11 +877,10 @@ describe('dx result.prevData', () => {
     const component = dx({
       init: { dxId: 'prevdata-02' },
       queryFn: getTeamObj,
-      run: (_i: any, r: any) => { capturedResult = r; },
+      onUpdate: (_i: any, r: any) => { capturedResult = r; },
       notify: noop,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
@@ -1317,11 +905,10 @@ describe('dx result.writeFn and result.writeParamsObj', () => {
     const component = dx({
       init: { dxId: 'writefn-01', team: 'right' },
       queryFn: getCounterByTeam,
-      run: (_i: any, r: any) => snapshots.push({ writeFn: r.writeFn, writeParamsObj: r.writeParamsObj }),
+      onUpdate: (_i: any, r: any) => snapshots.push({ writeFn: r.writeFn, writeParamsObj: r.writeParamsObj }),
       notify: noop,
       onEmit: noop,
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     on();
@@ -1335,72 +922,346 @@ describe('dx result.writeFn and result.writeParamsObj', () => {
   });
 });
 
-// ─── DEV notify side of WARN events ──────────────────────────────────────
+// ─── onReady lifecycle ────────────────────────────────────────────────────
 
-describe('dx DEV warnings also route through notify', () => {
-  let warnSpy: jest.SpiedFunction<typeof console.warn>;
+describe('dx onReady lifecycle', () => {
+  beforeEach(() => resetStore());
+  afterEach(() => resetStore());
 
-  beforeEach(() => {
-    resetStore();
-    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    resetStore();
-    warnSpy.mockRestore();
-  });
-
-  it('routes WARN_reentrant_run through notify with correct componentId', () => {
-    const notify = createSpy();
-    let runCount = 0;
+  it('onReady fires after initial onUpdate', () => {
+    const onUpdate = createSpy();
+    const onReady = createSpy();
+    let callOrder: string[] = [];
 
     const component = dx({
-      init: { dxId: 'warn-notify-01', team: 'right' },
+      init: { dxId: 'ready-01', team: 'right' },
       queryFn: getCounterByTeam,
-      run: () => {
-        runCount++;
-        if (runCount === 2) trigger(incrementCounterByTeam, { team: 'right' });
+      onUpdate: () => { callOrder.push('onUpdate'); },
+      onReady: () => { callOrder.push('onReady'); },
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const { on, off } = component.claim();
+    on();
+    expect(callOrder).toEqual(['onUpdate', 'onReady']);
+    off();
+  });
+
+  it('onReady can call trigger() which dispatches onUpdate live', async () => {
+    const updateCount: number[] = [];
+
+    const component = dx({
+      init: { dxId: 'ready-02', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: () => { updateCount.push(updateCount.length); },
+      onReady: () => {
+        trigger(incrementCounterByTeam, { team: 'right' });
       },
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const { on, off } = component.claim();
+    on();
+    expect(updateCount.length).toBe(2);
+    off();
+  });
+
+  it('onReady errors are caught and notified', () => {
+    const notify = createSpy();
+
+    const component = dx({
+      init: { dxId: 'ready-03', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: noop,
+      onReady: () => { throw new Error("onReady boom!"); },
       notify,
       onEmit: noop,
-      __dev__: true,
-    } as any);
+    });
+
+    const { on, off } = component.claim();
+    on();
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith("ERROR_run_sync", expect.objectContaining({
+      error: expect.objectContaining({ message: "onReady boom!" })
+    }));
+    off();
+  });
+
+  it('onReady that returns a Promise is treated as an error', () => {
+    const notify = createSpy();
+
+    const component = dx({
+      init: { dxId: 'ready-04', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: noop,
+      onReady: () => Promise.resolve(),
+      notify,
+      onEmit: noop,
+    });
+
+    const { on, off } = component.claim();
+    on();
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith("ERROR_run_sync", expect.objectContaining({
+      error: expect.objectContaining({ message: expect.stringContaining("must be synchronous") })
+    }));
+    off();
+  });
+});
+
+// ─── onUnmount lifecycle ──────────────────────────────────────────────────
+
+describe('dx onUnmount lifecycle', () => {
+  beforeEach(() => resetStore());
+  afterEach(() => resetStore());
+
+  it('onUnmount fires during off() before beforeOff', () => {
+    const callOrder: string[] = [];
+
+    const component = dx({
+      init: { dxId: 'unmount-01', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: noop,
+      onUnmount: () => { callOrder.push('onUnmount'); },
+      beforeOff: () => { callOrder.push('beforeOff'); },
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const { on, off } = component.claim();
+    on();
+    off();
+    expect(callOrder).toEqual(['onUnmount', 'beforeOff']);
+  });
+
+  it('onUnmount errors are caught and notified, deactivation continues', async () => {
+    const notify = createSpy();
+    const onUpdate = createSpy();
+
+    const component = dx({
+      init: { dxId: 'unmount-02', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate,
+      onUnmount: () => { throw new Error("onUnmount boom!"); },
+      notify,
+      onEmit: noop,
+    });
+
+    const { on, off } = component.claim();
+    on();
+    off();
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith("ERROR_run_sync", expect.objectContaining({
+      error: expect.objectContaining({ message: "onUnmount boom!" })
+    }));
+    trigger(incrementCounterByTeam, { team: 'right' });
+    await wait();
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('onUnmount that returns a Promise is treated as an error', () => {
+    const notify = createSpy();
+
+    const component = dx({
+      init: { dxId: 'unmount-03', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: noop,
+      onUnmount: () => Promise.resolve(),
+      notify,
+      onEmit: noop,
+    });
+
+    const { on, off } = component.claim();
+    on();
+    off();
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith("ERROR_run_sync", expect.objectContaining({
+      error: expect.objectContaining({ message: expect.stringContaining("must be synchronous") })
+    }));
+  });
+
+  it('onUnmount can safely call child.off() while dxId is still held', () => {
+    const childComponent = dx({
+      init: { dxId: 'child-unmount-01', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: noop,
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const parentComponent = dx({
+      init: { dxId: 'parent-unmount-01', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: noop,
+      onUnmount: () => {
+        const { off } = childComponent.claim();
+        off();
+      },
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const { on: parentOn, off: parentOff } = parentComponent.claim();
+    const { on: childOn, off: childOff } = childComponent.claim();
+
+    childOn();
+    parentOn();
+    expect(() => parentOff()).not.toThrow();
+  });
+});
+
+// ─── throttleMs ───────────────────────────────────────────────────────
+
+describe('dx throttleMs option', () => {
+  beforeEach(() => resetStore());
+  afterEach(() => resetStore());
+
+  it('fires immediately on first trigger then rate-limits subsequent calls', async () => {
+    const onUpdate = createSpy();
+
+    const component = dx({
+      init: { dxId: 'throttle-01', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: (_i: any, r: any) => onUpdate(r.data),
+      notify: noop,
+      onEmit: noop,
+      queryOptions: { throttleMs: 100 },
+    });
 
     const { on, off } = component.claim();
     on();
     trigger(incrementCounterByTeam, { team: 'right' });
-    expect(notify).toHaveBeenCalledWith('WARN_reentrant_run', expect.objectContaining({ componentId: 'warn-notify-01' }));
+    await wait(10);
+    expect(onUpdate).toHaveBeenCalledTimes(2);
+    trigger(incrementCounterByTeam, { team: 'right' });
+    await wait(10);
+    expect(onUpdate).toHaveBeenCalledTimes(2);
+    await wait(120);
+    expect(onUpdate).toHaveBeenCalledTimes(3);
+    trigger(incrementCounterByTeam, { team: 'right' });
+    await wait(10);
+    expect(onUpdate).toHaveBeenCalledTimes(4);
     off();
   });
+});
 
-  it('routes WARN_late_callback through notify with componentId and totalDropped', () => {
+// ─── onBeforeOnFail called on subscribe() failure ────────────────────────
+
+describe('dx onBeforeOnFail on subscribe failure', () => {
+  beforeEach(() => resetStore());
+  afterEach(() => resetStore());
+
+  it('calls onBeforeOnFail when subscribe() throws', () => {
     const notify = createSpy();
-
-    const subscribeSpy = jest.spyOn(adaxCore, 'subscribe').mockImplementation(((readTrigger: any) => ({
-      result: { data: 0, prevData: 0, version: 0, writeFn: undefined, writeParamsObj: undefined },
-      on: jest.fn(),
-      off: jest.fn(),
-    })) as any);
+    const onBeforeOnFail = createSpy();
+    const onUpdate = createSpy();
 
     const component = dx({
-      init: { dxId: 'warn-notify-02', team: 'right' },
+      init: { dxId: 'subscribe-fail-01', team: 'right' },
       queryFn: getCounterByTeam,
-      run: noop,
+      onUpdate,
       notify,
       onEmit: noop,
-      __dev__: true,
-    } as any);
+      onBeforeOnFail,
+      queryOptions: { debounceMs: 100, throttleMs: 100 },
+    });
 
     const { on, off } = component.claim();
     on();
-    off();
-    const readTrigger = subscribeSpy.mock.calls[0][0] as any;
-    readTrigger({ data: 1, prevData: 0, version: 1, writeFn: undefined, writeParamsObj: undefined });
-    expect(notify).toHaveBeenCalledWith('WARN_late_callback', expect.objectContaining({
-      componentId: 'warn-notify-02',
-      totalDropped: 1,
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith('ERROR_subscribe', expect.objectContaining({
+      error: expect.objectContaining({ message: expect.stringContaining('Cannot have both debounce and throttle') })
     }));
-    subscribeSpy.mockRestore();
+    expect(onBeforeOnFail).toHaveBeenCalledTimes(1);
+    expect(onUpdate).not.toHaveBeenCalled();
+    off();
+  });
+
+  it('notifies ERROR_onBeforeOnFail when onBeforeOnFail throws during subscribe() failure', () => {
+    const notify = createSpy();
+    const onUpdate = createSpy();
+
+    const component = dx({
+      init: { dxId: 'subscribe-fail-02', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate,
+      notify,
+      onEmit: noop,
+      onBeforeOnFail: () => { throw new Error("onBeforeOnFail cleanup failed!"); },
+      queryOptions: { debounceMs: 100, throttleMs: 100 },
+    });
+
+    const { on, off } = component.claim();
+    on();
+    expect(notify).toHaveBeenCalledTimes(2);
+    expect(notify).toHaveBeenNthCalledWith(1, 'ERROR_subscribe', expect.objectContaining({
+      error: expect.objectContaining({ message: expect.stringContaining('Cannot have both debounce and throttle') })
+    }));
+    expect(notify).toHaveBeenNthCalledWith(2, 'ERROR_onBeforeOnFail', expect.objectContaining({
+      error: expect.objectContaining({ message: "onBeforeOnFail cleanup failed!" }),
+      componentId: 'subscribe-fail-02'
+    }));
+    expect(onUpdate).not.toHaveBeenCalled();
+    off();
+  });
+});
+
+// ─── At least one lifecycle hook is required ─────────────────────────────
+
+describe('dx at least one lifecycle hook validation', () => {
+  beforeEach(() => resetStore());
+  afterEach(() => resetStore());
+
+  it('throws if none of onUpdate, onReady, onUnmount are provided', () => {
+    expect(() => {
+      dx({
+        init: { dxId: 'no-hook-01', team: 'right' },
+        queryFn: getCounterByTeam,
+        notify: noop,
+        onEmit: noop,
+      } as any);
+    }).toThrow('At least one of onUpdate, onReady, or onUnmount must be provided');
+  });
+
+  it('does not throw if only onUpdate is provided', () => {
+    expect(() => {
+      const component = dx({
+        init: { dxId: 'hook-01', team: 'right' },
+        queryFn: getCounterByTeam,
+        onUpdate: noop,
+        notify: noop,
+        onEmit: noop,
+      });
+      component.claim();
+    }).not.toThrow();
+  });
+
+  it('does not throw if only onReady is provided', () => {
+    expect(() => {
+      const component = dx({
+        init: { dxId: 'hook-02', team: 'right' },
+        queryFn: getCounterByTeam,
+        onReady: noop,
+        notify: noop,
+        onEmit: noop,
+      });
+      component.claim();
+    }).not.toThrow();
+  });
+
+  it('does not throw if only onUnmount is provided', () => {
+    expect(() => {
+      const component = dx({
+        init: { dxId: 'hook-03', team: 'right' },
+        queryFn: getCounterByTeam,
+        onUnmount: noop,
+        notify: noop,
+        onEmit: noop,
+      });
+      component.claim();
+    }).not.toThrow();
   });
 });
 
@@ -1410,33 +1271,63 @@ describe('dx trigger() inside beforeOn', () => {
   beforeEach(() => resetStore());
   afterEach(() => resetStore());
 
-  it('does not crash when trigger() is called inside beforeOn (notification silently dropped)', () => {
-    const run = createSpy();
+  it('does not crash when trigger() is called inside beforeOn (update is deferred)', () => {
+    const onUpdate = createSpy();
     const notify = createSpy();
 
     const component = dx({
       init: { dxId: 'gap-01', team: 'right' },
       queryFn: getCounterByTeam,
-      run,
+      onUpdate,
       notify,
       onEmit: noop,
       beforeOn: () => {
         trigger(incrementCounterByTeam, { team: 'right' });
       },
-      __dev__: false,
-    } as any);
+    });
 
     const { on, off } = component.claim();
     expect(() => on()).not.toThrow();
     expect(notify).not.toHaveBeenCalled();
-    expect(run).toHaveBeenCalledTimes(1);
-    // The run function now receives 4 arguments: init, result, ctx, emit
-    expect(run).toHaveBeenCalledWith(
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledWith(
       expect.anything(),        // init
       expect.objectContaining({ data: 1 }), // result
       expect.anything(),        // ctx
       expect.any(Function)      // emit
     );
+    off();
+  });
+});
+
+// ─── Pending update flushed after isLive ─────────────────────────────────
+
+describe('dx pending update coalescing', () => {
+  beforeEach(() => resetStore());
+  afterEach(() => resetStore());
+
+  it('collapses multiple trigger() calls during initial onUpdate into one update', async () => {
+    const onUpdate = createSpy();
+
+    const component = dx({
+      init: { dxId: 'coalesce-01', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: () => {
+        onUpdate();
+        // Simulate trigger inside initial onUpdate
+        if (onUpdate.mock.calls.length === 1) {
+          trigger(incrementCounterByTeam, { team: 'right' });
+        }
+      },
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const { on, off } = component.claim();
+    on();
+    // Initial onUpdate triggers an internal trigger(), which is collapsed
+    // Then onReady (if present) or just end, isLive is set, pendingUpdate is flushed
+    expect(onUpdate).toHaveBeenCalledTimes(2);
     off();
   });
 });
