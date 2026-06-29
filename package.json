@@ -23,7 +23,7 @@
     "clean": "rimraf node_modules && rimraf dist && rimraf coverage",
     "dev": "tsup src/index.ts --format esm,cjs --watch --dts",
     "pack:local": "npm pack",
-    "publish": "npm publish"
+    "publish": "npm run build && npm publish"
   },
   "keywords": [
     "micro frontends",
