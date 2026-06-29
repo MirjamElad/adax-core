@@ -1,6 +1,6 @@
 {
   "name": "adax-core",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -19,8 +19,8 @@
   "sideEffects": false,
   "scripts": {
     "test": "npx jest",
-    "build": "tsup src/index.ts --format esm,cjs --dts",
-    "clean": "rimraf node_modules && rimraf dist && rimraf coverage",
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "clean": "npx rimraf node_modules dist coverage",
     "dev": "tsup src/index.ts --format esm,cjs --watch --dts",
     "pack:local": "npm pack",
     "publish": "npm run build && npm publish"
