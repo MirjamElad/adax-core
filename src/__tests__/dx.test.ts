@@ -1331,3 +1331,492 @@ describe('dx pending update coalescing', () => {
     off();
   });
 });
+
+// ─── Result version tracking ──────────────────────────────────────────────
+
+describe('dx result.version tracking', () => {
+  beforeEach(() => resetStore());
+  afterEach(() => resetStore());
+
+  it('increments version on each query result change', async () => {
+    const versions: number[] = [];
+
+    const component = dx({
+      init: { dxId: 'version-01', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: (_i: any, r: any) => versions.push(r.version),
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const { on, off } = component.claim();
+    on();
+    expect(versions).toEqual([0]);
+    trigger(incrementCounterByTeam, { team: 'right' });
+    await wait();
+    expect(versions).toEqual([0, 1]);
+    trigger(incrementCounterByTeam, { team: 'right' });
+    await wait();
+    expect(versions).toEqual([0, 1, 2]);
+    off();
+  });
+
+  it('version does not increment if hasResultChanged returns false', async () => {
+    const versions: number[] = [];
+
+    const component = dx({
+      init: { dxId: 'version-02', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: (_i: any, r: any) => versions.push(r.version),
+      notify: noop,
+      onEmit: noop,
+      queryOptions: { hasResultChanged: () => false },
+    });
+
+    const { on, off } = component.claim();
+    on();
+    expect(versions).toEqual([0]);
+    trigger(incrementCounterByTeam, { team: 'right' });
+    await wait();
+    expect(versions).toEqual([0]);
+    off();
+  });
+});
+
+// ─── Domain event emissions via onEmit ────────────────────────────────────
+
+describe('dx domain event emissions (onEmit)', () => {
+  beforeEach(() => resetStore());
+  afterEach(() => resetStore());
+
+  it('passes emit callback to onUpdate with correct signature', () => {
+    const emitCalls: any[] = [];
+
+    const component = dx({
+      init: { dxId: 'emit-01', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: (_i: any, _r: any, _ctx: any, emit: any) => {
+        emitCalls.push({ emit: typeof emit, isFunction: typeof emit === 'function' });
+      },
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const { on, off } = component.claim();
+    on();
+    expect(emitCalls[0].isFunction).toBe(true);
+    off();
+  });
+
+  it('onEmit receives events dispatched during onUpdate', () => {
+    const emittedEvents: any[] = [];
+
+    const component = dx({
+      init: { dxId: 'emit-02', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: (_i: any, r: any, _ctx: any, emit: any) => {
+        if (r.data === 0) {
+          emit('COUNTER_CHANGED', { newValue: r.data });
+        }
+      },
+      notify: noop,
+      onEmit: (event: string, payload: any) => {
+        emittedEvents.push({ event, payload });
+      },
+    });
+
+    const { on, off } = component.claim();
+    on();
+    expect(emittedEvents).toEqual([
+      { event: 'COUNTER_CHANGED', payload: { newValue: 0 } }
+    ]);
+    off();
+  });
+});
+
+// ─── Complex trigger patterns ──────────────────────────────────────────────
+
+describe('dx complex trigger patterns', () => {
+  beforeEach(() => resetStore());
+  afterEach(() => resetStore());
+
+  it('handles nested trigger calls across multiple writes', async () => {
+    const updateLog: string[] = [];
+
+    const component = dx({
+      init: { dxId: 'nested-01', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: (_i: any, r: any) => {
+        updateLog.push(`counter=${r.data}`);
+      },
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const { on, off } = component.claim();
+    on();
+    trigger(incrementCounterByTeam, { team: 'right' });
+    trigger(incrementCounterByTeam, { team: 'right' });
+    trigger(incrementCounterByTeam, { team: 'right' });
+    await wait();
+    expect(updateLog).toEqual(['counter=0', 'counter=1', 'counter=2', 'counter=3']);
+    off();
+  });
+
+  it('correctly handles writes to different team parameters', async () => {
+    const updates: { team: string; counter: number }[] = [];
+
+    const component1 = dx({
+      init: { dxId: 'multi-team-01', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: (_i: any, r: any) => updates.push({ team: 'right', counter: r.data }),
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const component2 = dx({
+      init: { dxId: 'multi-team-02', team: 'left' },
+      queryFn: getCounterByTeam,
+      onUpdate: (_i: any, r: any) => updates.push({ team: 'left', counter: r.data }),
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const { on: on1, off: off1 } = component1.claim();
+    const { on: on2, off: off2 } = component2.claim();
+    on1();
+    on2();
+    trigger(incrementCounterByTeam, { team: 'right' });
+    await wait();
+    trigger(incrementCounterByTeam, { team: 'left' });
+    await wait();
+    expect(updates).toEqual([
+      { team: 'right', counter: 0 },
+      { team: 'left', counter: 0 },
+      { team: 'right', counter: 1 },
+      { team: 'left', counter: 1 },
+    ]);
+    off1();
+    off2();
+  });
+});
+
+// ─── Multiple queries and rule interactions ────────────────────────────────
+
+describe('dx multiple queries and rule interactions', () => {
+  beforeEach(() => resetStore());
+  afterEach(() => clearAllRules());
+
+  it('multiple query instances on same queryFn all receive updates', async () => {
+    const results1: number[] = [];
+    const results2: number[] = [];
+
+    const component1 = dx({
+      init: { dxId: 'multi-query-01', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: (_i: any, r: any) => results1.push(r.data),
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const component2 = dx({
+      init: { dxId: 'multi-query-02', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: (_i: any, r: any) => results2.push(r.data),
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const { on: on1, off: off1 } = component1.claim();
+    const { on: on2, off: off2 } = component2.claim();
+    on1();
+    on2();
+    trigger(incrementCounterByTeam, { team: 'right' });
+    await wait();
+    expect(results1).toEqual([0, 1]);
+    expect(results2).toEqual([0, 1]);
+    off1();
+    off2();
+  });
+
+  it('rule skip condition correctly filters which queries run', async () => {
+    addRule({
+      writeFn: incrementCounterByTeam,
+      queryFn: getCounterByTeam,
+      skip: (writeArgs: any, readArgs: any) => writeArgs.team !== readArgs.team,
+    });
+
+    const rightUpdates: number[] = [];
+    const leftUpdates: number[] = [];
+
+    const rightComponent = dx({
+      init: { dxId: 'rule-filter-right', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: (_i: any, r: any) => rightUpdates.push(r.data),
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const leftComponent = dx({
+      init: { dxId: 'rule-filter-left', team: 'left' },
+      queryFn: getCounterByTeam,
+      onUpdate: (_i: any, r: any) => leftUpdates.push(r.data),
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const { on: onR, off: offR } = rightComponent.claim();
+    const { on: onL, off: offL } = leftComponent.claim();
+    onR();
+    onL();
+    trigger(incrementCounterByTeam, { team: 'right' });
+    await wait();
+    expect(rightUpdates).toEqual([0, 1]);
+    expect(leftUpdates).toEqual([0]);
+    trigger(incrementCounterByTeam, { team: 'left' });
+    await wait();
+    expect(rightUpdates).toEqual([0, 1]);
+    expect(leftUpdates).toEqual([0, 1]);
+    offR();
+    offL();
+  });
+});
+
+// ─── Deep cloning and immutability ─────────────────────────────────────────
+
+describe('dx deep cloning and immutability', () => {
+  beforeEach(() => resetStore());
+  afterEach(() => resetStore());
+
+  it('modifications to result.data do not affect result.prevData', async () => {
+    let capturedData: any = null;
+    let capturedPrevData: any = null;
+
+    const storeWithArray = { items: [1, 2, 3] };
+    const getArray = (_?: any, stores = { storeWithArray }) => stores.storeWithArray.items;
+    const pushItem = (_?: any, stores = { storeWithArray }) => {
+      stores.storeWithArray.items.push(4);
+    };
+
+    const component = dx({
+      init: { dxId: 'clone-01' },
+      queryFn: getArray,
+      onUpdate: (_i: any, r: any) => {
+        capturedData = r.data;
+        capturedPrevData = r.prevData;
+      },
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const { on, off } = component.claim();
+    on();
+    trigger(pushItem, undefined);
+    await wait();
+    expect(capturedData).toEqual([1, 2, 3, 4]);
+    expect(capturedPrevData).toEqual([1, 2, 3]);
+    expect(capturedData).not.toBe(capturedPrevData);
+    off();
+  });
+
+  it('nested object cloning preserves independence', async () => {
+    const storeWithNested = {
+      user: { name: 'Alice', profile: { age: 30, city: 'NYC' } }
+    };
+    const getUser = (_?: any, stores = { storeWithNested }) => stores.storeWithNested.user;
+    const updateAge = (_?: any, stores = { storeWithNested }) => {
+      stores.storeWithNested.user.profile.age = 31;
+    };
+
+    let results: any[] = [];
+
+    const component = dx({
+      init: { dxId: 'clone-nested-01' },
+      queryFn: getUser,
+      onUpdate: (_i: any, r: any) => {
+        results.push({ data: r.data, prevData: r.prevData });
+      },
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const { on, off } = component.claim();
+    on();
+    trigger(updateAge, undefined);
+    await wait();
+    expect(results[1].data.profile.age).toBe(31);
+    expect(results[1].prevData.profile.age).toBe(30);
+    off();
+  });
+});
+
+// ─── Activation/deactivation state machine ────────────────────────────────
+
+describe('dx activation/deactivation state machine', () => {
+  beforeEach(() => resetStore());
+  afterEach(() => resetStore());
+
+  it('rapid on/off/on/off transitions execute hooks correctly', async () => {
+    const beforeOn = createSpy();
+    const beforeOff = createSpy();
+    const onUpdate = createSpy();
+
+    const component = dx({
+      init: { dxId: 'state-01', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate,
+      notify: noop,
+      onEmit: noop,
+      beforeOn,
+      beforeOff,
+    });
+
+    const { on, off } = component.claim();
+    on();
+    on();
+    on();
+    off();
+    off();
+    on();
+    expect(beforeOn).toHaveBeenCalledTimes(2);
+    expect(beforeOff).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledTimes(2);
+    off();
+  });
+
+  it('off() during onUpdate execution is deferred until after onUpdate completes', async () => {
+    const callOrder: string[] = [];
+
+    const component = dx({
+      init: { dxId: 'deferred-off-01', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: (_i: any) => {
+        callOrder.push('onUpdate-start');
+        callOrder.push('onUpdate-end');
+      },
+      onUnmount: () => {
+        callOrder.push('onUnmount');
+      },
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const { on, off } = component.claim();
+    on();
+    callOrder.push('after-on');
+    expect(callOrder).toEqual(['onUpdate-start', 'onUpdate-end', 'after-on']);
+    off();
+    expect(callOrder).toContain('onUnmount');
+  });
+});
+
+// ─── Custom kernel store isolation ────────────────────────────────────────
+
+describe('dx custom kernel store isolation', () => {
+  beforeEach(() => resetStore());
+  afterEach(() => resetStore());
+
+  it('two components with different kernels do not cross-trigger each other', async () => {
+    const kernel1 = new KernelStore();
+    const kernel2 = new KernelStore();
+
+    const updates1: number[] = [];
+    const updates2: number[] = [];
+
+    const component1 = dx({
+      init: { dxId: 'kernel-iso-01', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: (_i: any, r: any) => updates1.push(r.data),
+      notify: noop,
+      onEmit: noop,
+      stores: { kernel: kernel1 },
+    });
+
+    const component2 = dx({
+      init: { dxId: 'kernel-iso-02', team: 'left' },
+      queryFn: getCounterByTeam,
+      onUpdate: (_i: any, r: any) => updates2.push(r.data),
+      notify: noop,
+      onEmit: noop,
+      stores: { kernel: kernel2 },
+    });
+
+    const { on: on1, off: off1 } = component1.claim();
+    const { on: on2, off: off2 } = component2.claim();
+
+    on1();
+    on2();
+    expect(updates1).toEqual([0]);
+    expect(updates2).toEqual([0]);
+
+    trigger(incrementCounterByTeam, { team: 'right' }, { kernel: kernel1 });
+    await wait();
+    expect(updates1).toEqual([0, 1]);
+    expect(updates2).toEqual([0]);
+
+    trigger(incrementCounterByTeam, { team: 'left' }, { kernel: kernel2 });
+    await wait();
+    expect(updates1).toEqual([0, 1]);
+    expect(updates2).toEqual([0, 1]);
+
+    off1();
+    off2();
+  });
+});
+
+// ─── onReady and trigger interactions ──────────────────────────────────────
+
+describe('dx onReady and trigger interactions', () => {
+  beforeEach(() => resetStore());
+  afterEach(() => resetStore());
+
+  it('pendingUpdate is flushed before onReady runs', async () => {
+    const readyCallCount = { value: 0 };
+    const updateCallCount = { value: 0 };
+
+    const component = dx({
+      init: { dxId: 'ready-flush-01', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: () => {
+        updateCallCount.value++;
+        if (updateCallCount.value === 1) {
+          trigger(incrementCounterByTeam, { team: 'right' });
+        }
+      },
+      onReady: () => {
+        readyCallCount.value++;
+      },
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const { on, off } = component.claim();
+    on();
+    expect(updateCallCount.value).toBe(2);
+    expect(readyCallCount.value).toBe(1);
+    off();
+  });
+
+  it('multiple trigger() calls during onReady are dispatched live', async () => {
+    const updateLog: number[] = [];
+
+    const component = dx({
+      init: { dxId: 'ready-live-01', team: 'right' },
+      queryFn: getCounterByTeam,
+      onUpdate: (_i: any, r: any) => {
+        updateLog.push(r.data);
+      },
+      onReady: () => {
+        trigger(incrementCounterByTeam, { team: 'right' });
+        trigger(incrementCounterByTeam, { team: 'right' });
+      },
+      notify: noop,
+      onEmit: noop,
+    });
+
+    const { on, off } = component.claim();
+    on();
+    expect(updateLog).toEqual([0, 1, 2]);
+    off();
+  });
+});
