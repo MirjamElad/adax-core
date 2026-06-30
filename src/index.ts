@@ -191,7 +191,7 @@ export function dx<
   TInit extends Parameters<TQueryFn>[0] & DxInit,
   TNotifications extends NotificationMap
 >(config: AtLeastOneHook<TQueryFn, TInit, TNotifications>)
-  : { claim: () => { on: () => void; off: () => void } } {
+  : { claim: () => { on: () => void; off: () => void; isActive: () => boolean } } {
 
   if (!config.onUpdate && !config.onReady && !config.onUnmount) {
     throw new Error(`[dx] At least one of onUpdate, onReady, or onUnmount must be provided.`);
@@ -352,6 +352,7 @@ export function dx<
     return {
       on:  () => { desiredState = "active";   reconcile(); },
       off: () => { desiredState = "inactive"; reconcile(); },
+      isActive: () => actualState === "active",
     };
   };
 
